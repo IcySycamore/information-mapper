@@ -7,15 +7,19 @@
     python scripts/make_release.py --zip          # 另附便于分发的压缩包
     python scripts/make_release.py --keep-build   # 保留 build/ 与 dist/ 中间产物
 
-产出目录::
+产出目录（两种形态各用一个目录，互不覆盖）::
 
-    release/基层办公自动化助手/
-        基层办公自动化助手.exe     主程序，双击即用
-        使用说明.txt               首次使用提示与技术支持方式
-        docs/USER_GUIDE.md         用户手册（软件「使用说明」页也会读取）
-        config/*.example.json      示例配置
-        README.md
-        _internal/                 运行时（仅目录版；勿删、勿改名）
+    release/基层办公自动化助手/                        目录版（默认，启动快）
+        基层办公自动化助手.exe                       主程序，双击即用
+        使用说明.txt / docs / config / README.md
+        _internal/                                  运行时，勿删、勿改名
+    release/基层办公自动化助手-单文件版/                单文件版（--onefile，启动需解包）
+        information-mapper-<版本>-win64-single-exe.exe
+        使用说明.txt / docs / config / README.md
+    release/information-mapper-<版本>-win64-portable.zip 目录版压缩包（--zip）
+
+两种形态的 exe 与 zip 文件名均为 ASCII（非 ASCII 文件名在命令行工具与
+GitHub Release 上传时会被吞掉），中文名只出现在压缩包内的目录上。
 
 需要额外收集的资源，缺失时对应功能会在打包后失效：
 
@@ -45,8 +49,16 @@ from typing import Sequence
 ROOT = Path(__file__).resolve().parents[1]
 APP_NAME = "基层办公自动化助手"
 BUILD_NAME = "OfficeAssistant"  # 构建名用 ASCII，避开各工具链对非 ASCII 路径的兼容问题
-RELEASE_DIR = ROOT / "release" / APP_NAME
+RELEASE_ROOT = ROOT / "release"
+RELEASE_DIR = RELEASE_ROOT / APP_NAME  # 目录版产物
+SINGLE_DIR = RELEASE_ROOT / f"{APP_NAME}-单文件版"  # 单文件版产物
 MANUAL = ROOT / "docs" / "USER_GUIDE.md"
+
+
+def asset_name(tag: str, onefile: bool) -> str:
+    """产物文件名（也是 GitHub Release 资源名）。"""
+    suffix = "win64-single-exe.exe" if onefile else "win64-portable.zip"
+    return f"information-mapper-{tag}-{suffix}"
 
 # 当前环境里用不到、但会被间接拉进来的大包；排除后体积明显下降
 EXCLUDES = (
@@ -118,26 +130,29 @@ def run_build(onefile: bool) -> Path:
     return produced
 
 
-def assemble(produced: Path, onefile: bool) -> Path:
-    """把产物与随包分发的外部文件组装到发布目录。"""
-    if RELEASE_DIR.exists():
-        shutil.rmtree(RELEASE_DIR)
-    (RELEASE_DIR / "docs").mkdir(parents=True)
-    (RELEASE_DIR / "config").mkdir()
+def assemble(produced: Path, onefile: bool, tag: str) -> tuple[Path, Path]:
+    """把产物与随包分发的外部文件组装到发布目录；返回（发布目录, exe 路径）。"""
+    target = SINGLE_DIR if onefile else RELEASE_DIR
+    if target.exists():
+        shutil.rmtree(target)
+    (target / "docs").mkdir(parents=True)
+    (target / "config").mkdir()
 
     if onefile:
-        shutil.copy2(produced, RELEASE_DIR / f"{APP_NAME}.exe")
+        exe = target / asset_name(tag, True)
+        shutil.copy2(produced, exe)
     else:
-        shutil.copytree(produced, RELEASE_DIR, dirs_exist_ok=True)
-        (RELEASE_DIR / f"{BUILD_NAME}.exe").replace(RELEASE_DIR / f"{APP_NAME}.exe")
+        shutil.copytree(produced, target, dirs_exist_ok=True)
+        exe = target / f"{APP_NAME}.exe"
+        (target / f"{BUILD_NAME}.exe").replace(exe)
+        trim(target)
 
-    shutil.copy2(MANUAL, RELEASE_DIR / "docs" / MANUAL.name)
-    shutil.copy2(ROOT / "README.md", RELEASE_DIR / "README.md")
+    shutil.copy2(MANUAL, target / "docs" / MANUAL.name)
+    shutil.copy2(ROOT / "README.md", target / "README.md")
     for item in sorted((ROOT / "config").glob("*.example.json")):
-        shutil.copy2(item, RELEASE_DIR / "config" / item.name)
-    (RELEASE_DIR / "使用说明.txt").write_text(usage_text(), encoding="utf-8")
-    trim(RELEASE_DIR)
-    return RELEASE_DIR
+        shutil.copy2(item, target / "config" / item.name)
+    (target / "使用说明.txt").write_text(usage_text(), encoding="utf-8")
+    return target, exe
 
 
 def trim(release_dir: Path) -> None:
@@ -189,13 +204,13 @@ def version() -> str:
     return __version__
 
 
-def self_check(release_dir: Path) -> int:
+def self_check(exe: Path, work_dir: Path) -> int:
     """启动产物做无界面自检，返回 0 表示通过。"""
-    report = release_dir / "self-check.txt"
+    report = work_dir / "self-check.txt"
     if report.exists():
         report.unlink()
     print("\n校验产物：启动 exe 执行 --self-check …")
-    subprocess.run([str(release_dir / f"{APP_NAME}.exe"), "--self-check"], cwd=release_dir, timeout=300)
+    subprocess.run([str(exe), "--self-check"], cwd=work_dir, timeout=300)
     if not report.is_file():
         print("自检未通过：exe 未生成 self-check.txt")
         return 1
@@ -239,21 +254,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     produced = run_build(options.onefile)
-    release_dir = assemble(produced, options.onefile)
-    code = self_check(release_dir)
+    tag = version()
+    release_dir, exe = assemble(produced, options.onefile, tag)
+    code = self_check(exe, release_dir)
     if code != 0:
         print("产物自检未通过，请检查上面的报告；如需排查可加 --keep-build。")
         return code
 
-    if options.zip:
-        archive = make_zip(version())
-        print(f"压缩包：{archive}（{archive.stat().st_size / 1048576:.1f} MB）")
+    if options.zip and options.onefile:
+        print("提示：单文件版本身就是一个文件，无需再压缩；如需目录版压缩包请不带 --onefile 再跑一次。")
+    elif options.zip:
+        archive = make_zip(tag)
+        print(f"压缩包：{archive.relative_to(ROOT)}（{archive.stat().st_size / 1048576:.1f} MB）")
     if not options.keep_build:
         shutil.rmtree(ROOT / "build", ignore_errors=True)
         shutil.rmtree(ROOT / "dist", ignore_errors=True)
 
     print(f"\n发布目录：{release_dir}（{_dir_size(release_dir) / 1048576:.1f} MB）")
-    print("分发时请整个目录一起复制；单文件版只需拷 exe。")
+    if options.onefile:
+        print(f"上传 GitHub Release：{exe.relative_to(ROOT)}（文件名即资源名 {exe.name}）")
+    else:
+        print("分发时请整个目录一起复制（或上传上一步的 zip）。")
     return 0
 
 

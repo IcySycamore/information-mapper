@@ -212,19 +212,25 @@ pytest -q
 
 ## 打包发布
 
-项目按交付形态分两个版本，产物分开存放在不同目录，均不进入仓库：
+项目提供两套可分发形态，产物分开存放，均不进入仓库：
 
-| 版本        | 产物目录    | 生成方式                  | 适用对象             |
-| ----------- | ----------- | ------------------------- | -------------------- |
-| 免安装版    | `release/`  | `scripts/make_release.py` | 快速入门，体验功能   |
-| Python 库版 | `packages/` | `scripts/make_package.py` | 命令行使用或二次开发 |
+| 形态 / 版本       | 产物                                                                                                     | 适用对象                               |
+| ----------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| 免安装版·目录版   | `release/基层办公自动化助手/`（248 MB），压缩包 `information-mapper-<版本>-win64-portable.zip`（107 MB） | 快速入门，启动快；需整个目录一起复制   |
+| 免安装版·单文件版 | `release/基层办公自动化助手-单文件版/information-mapper-<版本>-win64-single-exe.exe`（119 MB）           | 只发一个文件最省事；启动需先解包，较慢 |
+| Python 库版       | `packages/`：wheel + sdist + 源码包                                                                      | 命令行使用或二次开发                   |
 
 ```powershell
-python -m pip install pyinstaller build            # 仅首次
-python scripts\make_release.py                     # 免安装版：目录版 + 产物自检
-python scripts\make_release.py --onefile --zip     # 免安装版：单exe，并附压缩包
-python scripts\make_package.py                     # 库版：wheel + sdist + 源码包
+python -m pip install pyinstaller build             # 仅首次
+python scripts\make_release.py                      # 目录版（默认，推荐）+ 产物自检
+python scripts\make_release.py --zip                # 目录版另附 zip（Release 上传用）
+python scripts\make_release.py --onefile            # 单文件版（一个 exe）
+python scripts\make_package.py                      # 库版：wheel + sdist + 源码包
 ```
+
+两种免安装形态构建后都会用 `--self-check` 启动产物，核对依赖、OCR 模型、识别链路与界面构建，
+不通过即视为构建失败。已发布的下载见
+[Releases](https://github.com/IcySycamore/information-mapper/releases)。详见 `docs/DEV_GUIDE.md` 第 10 章。
 
 ## 文档
 

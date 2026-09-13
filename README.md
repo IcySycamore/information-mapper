@@ -142,7 +142,6 @@ info-map --input data\source.xlsx --output output\result.xlsx --mapping config\m
 | `config/mapping.example.json`  | 字段映射：目标表头与候选来源字段               |
 | `config/classify.example.json` | 归档规则：目录、默认归类、扩展名/关键词/通配符 |
 | `config/upload.example.json`   | 上传接口：地址、密钥、提交方式、超时与重试     |
-| `config/pipeline.example.json` | 一键流程各阶段的开关与路径                     |
 
 上传地址与密钥在 `src/information_mapper/uploader.py` 中定义为占位符，
 也可通过环境变量 `INFO_MAP_UPLOAD_URL`、`INFO_MAP_UPLOAD_TOKEN` 提供。
@@ -150,6 +149,7 @@ info-map --input data\source.xlsx --output output\result.xlsx --mapping config\m
 ## 目录结构
 
 ```
+LICENSE                 MIT 许可证
 config/                 示例配置
 data/                   演示用输入文件
 output/                 输出结果（已忽略）
@@ -188,10 +188,10 @@ pytest -q
 
 项目按交付形态分两个版本，产物分开存放在不同目录，均不进入仓库：
 
-| 版本         | 产物目录   | 生成方式                    | 适用对象                             |
-| ------------ | ---------- | --------------------------- | ------------------------------------ |
-| 免安装版     | `release/` | `scripts/make_release.py`   | 没有 Python 环境的基层使用者         |
-| Python 库版  | `packages/` | `scripts/make_package.py`  | 有 Python 环境，需命令行或二次开发    |
+| 版本        | 产物目录    | 生成方式                  | 适用对象                           |
+| ----------- | ----------- | ------------------------- | ---------------------------------- |
+| 免安装版    | `release/`  | `scripts/make_release.py` | 没有 Python 环境的基层使用者       |
+| Python 库版 | `packages/` | `scripts/make_package.py` | 有 Python 环境，需命令行或二次开发 |
 
 ```powershell
 python -m pip install pyinstaller build            # 仅首次
@@ -230,3 +230,28 @@ python scripts\make_package.py                     # 库版：wheel + sdist + �
 - PDF：优先使用文本层；无文本层（扫描件）时自动改用 OCR；未实现 PDF 输出（可先输出 `.docx` 再另存）。
 - 复杂表头（多行表头、合并单元格）按首行取值，建议在源文件中先整理表头。
 - 源文件编码依赖自动探测（UTF-8 / GBK 等），非常规编码需先转换。
+
+## 许可
+
+本项目以 **MIT** 许可证发布，全文见根目录 `LICENSE`，可自由用于学习、二次开发与商业用途，
+保留版权声明即可。
+
+免安装版会把下列第三方组件一并打进包内，均与 MIT 兼容：
+
+| 组件                                 | 版本      | 许可证                  |
+| ------------------------------------ | --------- | ----------------------- |
+| pandas                               | 3.0.5     | BSD-3-Clause            |
+| numpy                                | 2.5.3     | BSD-3-Clause（注）      |
+| openpyxl                             | 3.1.5     | MIT                     |
+| python-docx                          | 1.2.0     | MIT                     |
+| pypdf                                | 6.18.1    | BSD-3-Clause（注）      |
+| xlrd                                 | 2.0.2     | BSD                     |
+| Pillow                               | 12.3.0    | MIT-CMU（注）           |
+| OpenCV（opencv-python）              | 5.0.0.93  | Apache-2.0              |
+| rapidocr-onnxruntime（含 PP-OCR 模型） | 1.4.4     | Apache-2.0              |
+| onnxruntime                          | 1.30.0    | MIT                     |
+| pypdfium2（含 `pdfium.dll`）          | 5.13.0    | BSD-3-Clause / Apache-2.0 |
+| shapely / pyclipper（OCR 预处理）     | 2.1.2 / 1.4.0 | BSD-3-Clause / MIT  |
+
+注：这三项的包元数据未声明许可证，以各自项目仓库的 LICENSE 为准。
+打包工具 PyInstaller 采用 GPLv2 **附例外条款**：用其构建的应用不受 GPL 传染，可自由分发。

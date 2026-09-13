@@ -8,6 +8,9 @@ version = "0.2.0"
 description = "基层办公自动化工具箱：文档信息提取、格式转换、批量合并、自动归档与上传"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "IcySycamore", email = "1284742412@qq.com" }]
 dependencies = [
     "pandas>=2.0",
     "openpyxl>=3.1",

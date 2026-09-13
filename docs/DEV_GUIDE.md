@@ -242,10 +242,10 @@ python scripts\make_demo_data.py
 
 项目按交付形态分两个版本，产物目录分开存放，均不进入仓库：
 
-| 版本        | 产物目录    | 生成方式                     | 适用对象                          |
-| ----------- | ----------- | ---------------------------- | --------------------------------- |
-| 免安装版    | `release/`  | `scripts/make_release.py`    | 没有 Python 环境的基层使用者      |
-| Python 库版 | `packages/` | `scripts/make_package.py`    | 有 Python 环境，需命令行或二次开发 |
+| 版本        | 产物目录    | 生成方式                  | 适用对象                           |
+| ----------- | ----------- | ------------------------- | ---------------------------------- |
+| 免安装版    | `release/`  | `scripts/make_release.py` | 没有 Python 环境的基层使用者       |
+| Python 库版 | `packages/` | `scripts/make_package.py` | 有 Python 环境，需命令行或二次开发 |
 
 ### 免安装版（release/）
 
@@ -339,10 +339,10 @@ python scripts\make_package.py                 # wheel + sdist + 源码包
 python scripts\make_package.py --no-source     # 只要 wheel 与 sdist
 ```
 
-| 产物                                      | 体积   | 用途                                                                   |
-| ----------------------------------------- | ------ | ---------------------------------------------------------------------- |
+| 产物                                         | 体积   | 用途                                                                            |
+| -------------------------------------------- | ------ | ------------------------------------------------------------------------------- |
 | `information_mapper-<版本>-py3-none-any.whl` | 58 KB  | `pip install` 后提供 `info-map` 命令，界面用 `python -m information_mapper.gui` |
-| `information_mapper-<版本>.tar.gz`           | 69 KB  | sdist，供 pip 构建或源码分发                                            |
+| `information_mapper-<版本>.tar.gz`           | 69 KB  | sdist，供 pip 构建或源码分发                                                    |
 | `information-mapper-<版本>-源码.zip`         | 120 KB | 含 `scripts/`、`docs/`、`config/` 与两个 `.bat`，解压后双击「一键配置环境.bat」 |
 
 默认用 `--no-isolation` 本地构建，避免联网拉取构建依赖；失败时自动改用隔离环境重试。
@@ -354,11 +354,22 @@ wheel 只包含 `src/information_mapper`，不含 `docs/`，因此 pip 安装后
 
 仓库内只保留源码、脚本、文档、示例配置与测试，其余内容分三类处理：
 
-| 目录                  | 内容                                                     | 是否入库       |
-| --------------------- | -------------------------------------------------------- | -------------- |
-| `materials/`          | 演示视频、答辩材料、软件截图、实践证明等材料与证明       | 已忽略（约 103 MB） |
-| `release/`、`packages/` | 两个版本的构建产物                                     | 已忽略         |
-| `build/`、`dist/`、`output/`、`self-check.txt` | 中间产物与运行输出            | 已忽略         |
+| 目录                                           | 内容                                               | 是否入库            |
+| ---------------------------------------------- | -------------------------------------------------- | ------------------- |
+| `materials/`                                   | 演示视频、答辩材料、软件截图、实践证明等材料与证明 | 已忽略（约 103 MB） |
+| `release/`、`packages/`                        | 两个版本的构建产物                                 | 已忽略              |
+| `build/`、`dist/`、`output/`、`self-check.txt` | 中间产物与运行输出                                 | 已忽略              |
 
 `materials/` 按用途分「演示视频 / 答辩材料 / 证明材料 / 素材 / 截图」五个子目录；
 历史上被跟踪的材料文件已从 git 历史中清除，仓库转为公开时不存在历史副本。
+
+### 许可与第三方组件
+
+- 项目本体以 MIT 发布（`LICENSE`），`pyproject.toml` 中通过 `license = "MIT"`
+  与 `license-files = ["LICENSE"]` 声明（PEP 639 写法，需 setuptools ≥ 77）。
+- 免安装版会分发 numpy、pandas、OpenCV、rapidocr-onnxruntime（含 PP-OCR 模型，源自 PaddleOCR）、
+onnxruntime、pdfium 等组件，均为 BSD / MIT / Apache-2.0，与 MIT 兼容；
+  完整清单见 `README.md` 的「许可」章节。
+- PyInstaller 为 GPLv2 **附例外条款**，构建出的 exe 不受 GPL 约束。
+- 对外发布时不要删除依赖包自带的许可证文件；`LICENSE` 中的版权人如需更名，
+  同时修改 `pyproject.toml` 的 `authors` 字段。

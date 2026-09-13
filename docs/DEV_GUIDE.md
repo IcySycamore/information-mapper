@@ -226,6 +226,9 @@ python scripts\make_demo_data.py
 8. OCR 链路：用一张含文字的图片验证 `read_image()` 能返回记录；扫描版 PDF 应自动回退到 OCR。
 9. 需要交付免安装版时，`python scripts\make_release.py` 应输出「自检结果：通过」，
    且报告中 `打包运行：是`、`OCR 模型：3 个`、`OCR 识别：成功`、`界面构建：成功（8 个标签页）` 均符合预期。
+10. 需要交付库版时，`python scripts\make_package.py` 应生成 whl、tar.gz 与源码包；
+    安装该 whl 后 `info-map formats` 输出正常。
+11. `git ls-files` 不应出现 `materials/`、`image/`、`release/`、`packages/` 下的任何文件。
 
 ## 9. 已知限制
 

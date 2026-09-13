@@ -196,8 +196,7 @@ pytest -q
 | 问题反馈 | https://github.com/IcySycamore/information-mapper/issues |
 
 图形界面「使用说明」页提供「技术支持」按钮，可查看上述联系方式与当前运行环境
-（软件版本、Python 版本、系统、关键依赖版本），并支持一键复制。弹窗内容不含报错信息，
-反馈问题时需另行附上右栏「消息」区中对应的报错记录，两者结合方能定位问题。
+（软件版本、Python 版本、系统、关键依赖版本），并支持一键复制。反馈问题时需附上右栏「消息」区中对应的报错记录，两者结合方能定位问题。
 联系方式定义在 `src/information_mapper/gui.py` 的 `SUPPORT_CONTACTS`。
 
 ## 已知限制

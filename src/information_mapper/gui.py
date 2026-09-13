@@ -60,6 +60,8 @@ STATUS_READY = "就绪"
 STATUS_RESET_MS = 4000  # 普通提示在几秒后自动回到「就绪」
 POLL_INTERVAL_MS = 80  # 后台消息轮询间隔
 SIDE_PANEL_WIDTH = 300  # 右栏固定宽度（像素）
+MAIN_WIDTH = 1040  # 主窗口启动尺寸（像素）
+MAIN_HEIGHT = 840
 MESSAGE_MAX_LINES = 500  # 右栏消息最多保留的行数
 MESSAGE_TRIM_LINES = 150  # 超出上限时一次丢弃的行数
 
@@ -225,8 +227,7 @@ def support_text(contacts: dict[str, str] | None = None, environment: dict[str, 
             f"  1. 在项目主页提交 issue：{SUPPORT_REPOSITORY}/issues",
             "  2. 也可通过上面的 QQ 或邮箱联系",
             "",
-            "本页内容为联系方式与运行环境，不含报错信息。",
-            "反馈时请附上本页信息，并附上右栏「消息」区中对应的报错记录",
+            "反馈时请附上附上右栏「消息」区中对应的报错记录",
             "（在右栏消息中选中相关文本，按 Ctrl+C 复制）。",
         ]
     )
@@ -625,7 +626,53 @@ class ScrollableTab(ttk.Frame):
         self.canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
 
 
-# ============================================================ 规则编辑对话框
+# ============================================================ 窗口位置与模态
+def center_on_screen(window: tk.Tk | tk.Toplevel, width: int, height: int) -> None:
+    """按指定尺寸把窗口居中到屏幕（启动时调用，无需先完成布局）。"""
+    left = max((window.winfo_screenwidth() - width) // 2, 0)
+    top = max((window.winfo_screenheight() - height) // 2, 0)
+    window.geometry(f"{width}x{height}+{left}+{top}")
+
+
+def _frame_origin(window: tk.Tk | tk.Toplevel) -> tuple[int, int] | None:
+    """取窗口外框左上角的屏幕坐标（即 `wm_geometry()` 中的 `+X+Y`）。
+
+    `winfo_rootx()` / `winfo_rooty()` 给的是客户区坐标，比外框右下偏移了边框与标题栏
+    （Windows 上实测约 8×31 像素），直接拿它居中会让弹窗整体偏右下，故取外框坐标。
+    """
+    match = re.match(r"\d+x\d+\+(-?\d+)\+(-?\d+)", window.wm_geometry())
+    if not match:
+        return None
+    return int(match.group(1)), int(match.group(2))
+
+
+def center_window(window: tk.Toplevel, parent: tk.Misc | None = None) -> None:
+    """把弹窗移到父窗口正中；父窗口不可见时退回屏幕居中。
+
+    必须在控件构建完成之后调用：布局结束前 `wm_geometry()` 一律返回 `1x1+0+0`，
+    拿不到真实尺寸。
+    """
+    window.update_idletasks()
+    match = re.match(r"(\d+)x(\d+)", window.wm_geometry())
+    if match:
+        width, height = int(match.group(1)), int(match.group(2))
+    else:  # pragma: no cover - wm_geometry 始终返回 WxH+X+Y
+        width, height = window.winfo_width(), window.winfo_height()
+
+    anchor = parent if parent is not None and parent.winfo_exists() and parent.winfo_viewable() else None
+    origin = _frame_origin(anchor) if isinstance(anchor, (tk.Tk, tk.Toplevel)) else None
+    if anchor is not None and origin is not None:
+        left = origin[0] + (anchor.winfo_width() - width) // 2
+        top = origin[1] + (anchor.winfo_height() - height) // 2
+    elif anchor is not None:  # 父窗口是普通控件（如 Frame），只能按客户区坐标估算
+        left = anchor.winfo_rootx() + (anchor.winfo_width() - width) // 2
+        top = anchor.winfo_rooty() + (anchor.winfo_height() - height) // 2
+    else:
+        left = (window.winfo_screenwidth() - width) // 2
+        top = (window.winfo_screenheight() - height) // 2
+    window.geometry(f"{width}x{height}+{left}+{top}")
+
+
 def _activate_modal(window: tk.Toplevel) -> None:
     """置为模态并聚焦；无显示环境（如自动化测试）下忽略失败。"""
     try:
@@ -669,6 +716,7 @@ class SupportDialog(tk.Toplevel):
         ttk.Button(footer, text="关闭", command=self.destroy).pack(side=tk.RIGHT)
 
         self.bind("<Escape>", lambda _event: self.destroy())
+        center_window(self, master)
         _activate_modal(self)
 
     def content(self) -> str:
@@ -719,6 +767,7 @@ class _FieldsDialog(tk.Toplevel):
 
         self.bind("<Return>", lambda _event: self._confirm())
         self.bind("<Escape>", lambda _event: self.destroy())
+        center_window(self, master)
         _activate_modal(self)
 
     def _confirm(self) -> None:
@@ -783,6 +832,7 @@ class _TableRuleDialog(tk.Toplevel):
         ttk.Button(footer, text="取消", command=self.destroy).pack(side=tk.RIGHT, padx=(0, 8))
 
         self._refresh()
+        center_window(self, master)
         _activate_modal(self)
 
     # -------------------------------------------------- 子类扩展
@@ -917,7 +967,7 @@ class OfficeAssistantApp(tk.Tk):
         super().__init__()
 
         self.title("基层办公自动化助手")
-        self.geometry("1040x840")
+        center_on_screen(self, MAIN_WIDTH, MAIN_HEIGHT)
         self.minsize(900, 560)
 
         self._queue: queue.Queue[tuple[str, str]] = queue.Queue()

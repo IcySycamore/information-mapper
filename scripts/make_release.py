@@ -207,8 +207,12 @@ def self_check(release_dir: Path) -> int:
 
 
 def make_zip(tag: str) -> Path:
-    """把发布目录压成一个 zip（上传 GitHub Release 用，勿提交到仓库）。"""
-    target = ROOT / "release" / f"{APP_NAME}-{tag}.zip"
+    """把发布目录压成一个 zip（上传 GitHub Release 用，勿提交到仓库）。
+
+    文件名用 ASCII：命令行工具与 GitHub Release 上传对非 ASCII 文件名支持不一，
+    中文名放在压缩包内的目录上。
+    """
+    target = ROOT / "release" / f"information-mapper-{tag}-win64-portable.zip"
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(RELEASE_DIR.rglob("*")):
             if path.is_file():

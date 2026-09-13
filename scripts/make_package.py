@@ -20,7 +20,7 @@
     packages/
         information_mapper-<版本>-py3-none-any.whl   pip 安装用
         information_mapper-<版本>.tar.gz             sdist
-        information-mapper-<版本>-源码.zip            含 scripts/docs/config 与 .bat，解压即用
+        information-mapper-<版本>-source.zip          含 scripts/docs/config 与 .bat，解压即用
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ def build_distributions(isolated: bool) -> list[Path]:
 
 def build_source_zip(tag: str) -> Path:
     """把源码、脚本、文档与批处理打包成可直接使用的源码包。"""
-    target = PACKAGES_DIR / f"information-mapper-{tag}-源码.zip"
+    target = PACKAGES_DIR / f"information-mapper-{tag}-source.zip"
     root_name = f"information-mapper-{tag}"
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
         for item in SOURCE_ITEMS:

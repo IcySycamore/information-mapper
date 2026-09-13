@@ -186,6 +186,19 @@ pytest -q
 | `docs/USER_GUIDE.md` | 图形界面使用者     |
 | `docs/DEV_GUIDE.md`  | 二次开发与维护人员 |
 
+## 技术支持
+
+| 方式 | 信息 |
+| --- | --- |
+| QQ | 1284742412 |
+| GitHub | IcySycamore |
+| 邮箱 | 1284742412@qq.com |
+| 问题反馈 | https://github.com/IcySycamore/information-mapper/issues |
+
+图形界面「使用说明」页提供「技术支持」按钮，可查看上述联系方式与当前运行环境
+（软件版本、Python 版本、系统、关键依赖版本），并支持一键复制；反馈问题时附上这些信息便于定位。
+联系方式定义在 `src/information_mapper/gui.py` 的 `SUPPORT_CONTACTS`。
+
 ## 已知限制
 
 - PDF：优先使用文本层；无文本层（扫描件）时自动改用 OCR；未实现 PDF 输出（可先输出 `.docx` 再另存）。

@@ -491,6 +491,59 @@ def test_startup_time_is_reported() -> None:
         app.destroy()
 
 
+# ---------------------------------------------------------------- 技术支持
+def test_support_text_contains_contacts() -> None:
+    text = gui.support_text()
+    assert "技术支持联系方式" in text
+    assert "QQ：1284742412" in text
+    assert "GitHub：IcySycamore" in text
+    assert "邮箱：1284742412@qq.com" in text
+    assert gui.SUPPORT_REPOSITORY in text
+
+
+def test_environment_summary_reports_versions() -> None:
+    summary = gui.environment_summary()
+    assert summary["版本"] == gui.__version__
+    assert summary["Python"]
+    assert summary["依赖"]
+
+
+def test_support_dialog_shows_contacts() -> None:
+    app = _make_app()
+    dialog = None
+    try:
+        dialog = gui.SupportDialog(app, text=gui.support_text())
+        content = dialog.content()
+        assert "QQ：1284742412" in content
+        assert "GitHub：IcySycamore" in content
+        assert "邮箱：1284742412@qq.com" in content
+    finally:
+        if dialog is not None:
+            dialog.destroy()
+        app.destroy()
+
+
+def test_manual_tab_has_support_button() -> None:
+    import tkinter.ttk as ttk
+
+    app = _make_app()
+
+    def collect(widget) -> list[str]:  # noqa: ANN001
+        found: list[str] = []
+        for child in widget.winfo_children():
+            if isinstance(child, ttk.Button):
+                found.append(str(child.cget("text")))
+            found.extend(collect(child))
+        return found
+
+    try:
+        app.notebook.select(MANUAL_TAB_INDEX)
+        app.update()
+        assert "技术支持" in collect(app.notebook)
+    finally:
+        app.destroy()
+
+
 # ---------------------------------------------------------------- 规则编辑
 def test_mapping_dialog_collects_rows() -> None:
     app = _make_app()

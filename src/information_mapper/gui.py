@@ -24,8 +24,10 @@
 from __future__ import annotations
 
 import copy
+import importlib
 import json
 import os
+import platform
 import queue
 import re
 import subprocess
@@ -38,7 +40,7 @@ from pathlib import Path
 from tkinter import filedialog, font as tkfont, ttk
 from typing import Any, Callable, Iterable, Sequence
 
-from . import rules
+from . import __version__, rules
 from .classify import ClassifyConfig
 from .classify import organize as organize_files
 from .classify import summarize as summarize_moves
@@ -119,11 +121,19 @@ TAB_HINTS: dict[str, str] = {
     "规则可直接在软件中增删改，保存后自动生成配置文件；移动明细见右栏消息。",
     TAB_UPLOAD: "添加要上传的文件 → 填写接口地址与密钥 → 先点「Ping 测试」确认接口可达，"
     "再点「开始上传」。Ping 只发一个轻量请求，不会上传文件。",
-    TAB_MANUAL: "此处显示完整说明书，亦可用系统默认程序打开文档查看。",
+    TAB_MANUAL: "此处显示完整说明书，亦可用系统默认程序打开文档查看；遇到问题点「技术支持」查看联系方式。",
     TAB_FORMATS: "列出各文件后缀的说明，以及能否作为输入（读）或输出（写）。",
 }
 
 MANUAL_FILENAME = "USER_GUIDE.md"
+
+# 技术支持：联系方式（可按实际情况修改）
+SUPPORT_CONTACTS: dict[str, str] = {
+    "QQ": "1284742412",
+    "GitHub": "IcySycamore",
+    "邮箱": "1284742412@qq.com",
+}
+SUPPORT_REPOSITORY = "https://github.com/IcySycamore/information-mapper"
 
 _FALLBACK_MANUAL = """# 用户手册（未找到文档）
 
@@ -167,6 +177,58 @@ def supported_filetypes() -> list[tuple[str, str]]:
     """文件选择对话框用的类型过滤器。"""
     patterns = " ".join(f"*{suffix}" for suffix in sorted(INPUT_SUFFIXES))
     return [("所有受支持文档", patterns), ("所有文件", "*.*")]
+
+
+def environment_summary() -> dict[str, str]:
+    """收集用于技术支持的运行环境信息。"""
+    dependencies = (
+        ("pandas", "pandas"),
+        ("python-docx", "docx"),
+        ("pypdf", "pypdf"),
+        ("Pillow", "PIL"),
+        ("rapidocr-onnxruntime", "rapidocr_onnxruntime"),
+        ("pypdfium2", "pypdfium2"),
+        ("xlrd", "xlrd"),
+    )
+    installed: list[str] = []
+    for label, module_name in dependencies:
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        version = getattr(module, "__version__", "已安装")
+        installed.append(f"{label} {version}")
+    return {
+        "版本": __version__,
+        "Python": platform.python_version(),
+        "系统": f"{platform.system()} {platform.release()}",
+        "依赖": " / ".join(installed) or "未检测到",
+    }
+
+
+def support_text(contacts: dict[str, str] | None = None, environment: dict[str, str] | None = None) -> str:
+    """拼装技术支持信息文本（供弹窗显示与复制）。"""
+    contact_items = contacts or SUPPORT_CONTACTS
+    environment_items = environment or environment_summary()
+    lines = [
+        f"基层办公自动化助手 v{environment_items.get('版本', __version__)}",
+        "",
+        "技术支持联系方式",
+    ]
+    lines.extend(f"  {label}：{value}" for label, value in contact_items.items())
+    lines.extend(["", "运行环境"])
+    lines.extend(f"  {label}：{value}" for label, value in environment_items.items())
+    lines.extend(
+        [
+            "",
+            "反馈方式",
+            f"  1. 在项目主页提交 issue：{SUPPORT_REPOSITORY}/issues",
+            "  2. 也可通过上面的 QQ 或邮箱联系",
+            "",
+            "反馈时请附上本页信息，便于定位问题。",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def manual_path() -> Path | None:
@@ -569,6 +631,53 @@ def _activate_modal(window: tk.Toplevel) -> None:
         window.focus_force()
     except tk.TclError:  # pragma: no cover - 窗口尚未映射
         pass
+
+
+class SupportDialog(tk.Toplevel):
+    """技术支持弹窗：联系方式与运行环境，可一键复制。"""
+
+    def __init__(self, master: tk.Misc, *, text: str) -> None:
+        super().__init__(master)
+        self.title("技术支持")
+        self.transient(master)
+        self.geometry("560x460")
+        self.minsize(480, 360)
+        self.copied = False
+
+        body = ttk.Frame(self, padding=12)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        holder = ttk.Frame(body)
+        holder.pack(fill=tk.BOTH, expand=True)
+        self._text = tk.Text(
+            holder, wrap=tk.WORD, relief=tk.FLAT, background="#fbfbfb", padx=10, pady=8
+        )
+        scrollbar = ttk.Scrollbar(holder, orient=tk.VERTICAL, command=self._text.yview)
+        self._text.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self._text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self._text.insert("1.0", text)
+        self._text.configure(state=tk.DISABLED)
+        self._content = text
+
+        footer = ttk.Frame(body)
+        footer.pack(fill=tk.X, pady=(8, 0))
+        self._copy_button = ttk.Button(footer, text="复制信息", command=self._copy)
+        self._copy_button.pack(side=tk.LEFT)
+        ttk.Button(footer, text="关闭", command=self.destroy).pack(side=tk.RIGHT)
+
+        self.bind("<Escape>", lambda _event: self.destroy())
+        _activate_modal(self)
+
+    def content(self) -> str:
+        """当前展示的信息文本。"""
+        return self._content
+
+    def _copy(self) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(self._content)
+        self.copied = True
+        self._copy_button.configure(text="已复制")
 
 
 class _FieldsDialog(tk.Toplevel):
@@ -1110,6 +1219,7 @@ class OfficeAssistantApp(tk.Tk):
         actions.pack(fill=tk.X)
         ttk.Button(actions, text="打开说明书", command=self._on_open_manual).pack(side=tk.LEFT)
         ttk.Button(actions, text="重新载入", command=self._load_manual).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(actions, text="技术支持", command=self._on_show_support).pack(side=tk.LEFT, padx=(8, 0))
 
         holder = ttk.Frame(tab)
         holder.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
@@ -1159,6 +1269,13 @@ class OfficeAssistantApp(tk.Tk):
             self.show_success(f"已用系统默认程序打开 {self._manual_file.name}")
         else:
             self.show_error(f"打开失败，请手动打开 {self._manual_file}")
+
+    def _on_show_support(self) -> None:
+        """弹出技术支持信息：联系方式与运行环境。"""
+        dialog = SupportDialog(self, text=support_text())
+        self.wait_window(dialog)
+        if dialog.copied:
+            self.show_success("技术支持信息已复制到剪贴板")
 
     def _build_formats_tab(self) -> None:
         tab = self._new_plain_tab(TAB_FORMATS)

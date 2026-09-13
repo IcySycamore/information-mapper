@@ -4,25 +4,20 @@
 
 安全性>性能>可扩展性
 
-### 1.1 项目沿革
-
-最初版本的源码由 [moonlut](https://github.com/moonlut) 提供，报表汇总与信息提取的核心逻辑在此基础上继续开发，
-后续补齐格式转换、合并、归档、上传、图形界面与打包发布，并在 `src/information_mapper/` 下整理为可测试的模块。
-
 ## 2. 模块职责
 
-| 模块            | 职责                                        | 主要接口                                                                                                                             |
-| --------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `formats.py`    | 格式注册表：可读、可写、格式分类            | `INPUT_SUFFIXES` `OUTPUT_SUFFIXES` `format_kind` `support_matrix`                                                                    |
-| `core.py`       | 字段映射（纯函数，无 IO）                   | `map_records(records, target_headers, field_mapping)`                                                                                |
+| 模块              | 职责                                        | 主要接口                                                                                                                                             |
+| ----------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `formats.py`    | 格式注册表：可读、可写、格式分类            | `INPUT_SUFFIXES` `OUTPUT_SUFFIXES` `format_kind` `support_matrix`                                                                            |
+| `core.py`       | 字段映射（纯函数，无 IO）                   | `map_records(records, target_headers, field_mapping)`                                                                                              |
 | `readers.py`    | 多格式读取、目录批量读取、图片/扫描件 OCR   | `read_any` `read_folder` `iter_input_files` `read_image` `ocr_pdf_text` `ocr_available` `is_plain_content` `content_of`              |
-| `writers.py`    | 记录写出、正文直转、Excel/CSV 追加          | `write_output` `write_text_document`                                                                                                 |
-| `converters.py` | 格式转换（单文件 / 整目录）                 | `convert_file` `convert_folder` `normalize_target_format`                                                                            |
-| `merger.py`     | 多文档合并为一个文档                        | `merge_any` `merge_tables` `merge_word_documents` `merge_text_documents` `collect_headers` `pick_mode`                               |
-| `classify.py`   | 按规则归档                                  | `ClassifyConfig` `plan_moves` `apply_moves` `organize`                                                                               |
+| `writers.py`    | 记录写出、正文直转、Excel/CSV 追加          | `write_output` `write_text_document`                                                                                                             |
+| `converters.py` | 格式转换（单文件 / 整目录）                 | `convert_file` `convert_folder` `normalize_target_format`                                                                                      |
+| `merger.py`     | 多文档合并为一个文档                        | `merge_any` `merge_tables` `merge_word_documents` `merge_text_documents` `collect_headers` `pick_mode`                                   |
+| `classify.py`   | 按规则归档                                  | `ClassifyConfig` `plan_moves` `apply_moves` `organize`                                                                                       |
 | `rules.py`      | 规则默认值、界面行与配置字典互转、临时 JSON | `DEFAULT_MAPPING` `DEFAULT_CLASSIFY` `mapping_rows` `build_mapping` `classify_rows` `build_classify` `write_temp_rules` `read_rules` |
-| `uploader.py`   | 上传与连通性测试                            | `UploadConfig` `build_request` `upload_file` `upload_folder` `ping_server`                                                           |
-| `cli.py`        | 命令行入口                                  | `main(argv)` `build_parser`                                                                                                          |
+| `uploader.py`   | 上传与连通性测试                            | `UploadConfig` `build_request` `upload_file` `upload_folder` `ping_server`                                                                 |
+| `cli.py`        | 命令行入口                                  | `main(argv)` `build_parser`                                                                                                                      |
 | `gui.py`        | 图形界面与服务层                            | `OfficeAssistantApp`、`run_report` / `run_convert` / `run_merge` / `run_scan` / `run_classify` / `run_upload` / `ping_upload`        |
 
 ## 3. 数据流与记录约定
@@ -37,12 +32,12 @@
 
 `readers` 的返回约定：
 
-| 情况                           | 返回值                                    |
-| ------------------------------ | ----------------------------------------- |
-| 有结构（表格行、`字段：内容`） | `[{"字段": "值", ...}, ...]`              |
-| 无结构（正文、无键值文本）     | `[{"内容": "整篇正文"}]`                  |
-| 解析不到内容                   | `[]`                                      |
-| 格式不支持                     | `raise ValueError("不支持的输入格式：…")` |
+| 情况                             | 返回值                                       |
+| -------------------------------- | -------------------------------------------- |
+| 有结构（表格行、`字段：内容`） | `[{"字段": "值", ...}, ...]`               |
+| 无结构（正文、无键值文本）       | `[{"内容": "整篇正文"}]`                   |
+| 解析不到内容                     | `[]`                                       |
+| 格式不支持                       | `raise ValueError("不支持的输入格式：…")` |
 
 - 表格类输入天然是记录；正文类输入用 `is_plain_content()` 判定，转换时走"原文直转"。
 - 批量读取默认 `skip_errors=True`，失败项写入传入的 `failed` 列表。
@@ -53,11 +48,11 @@
 
 主窗口使用 grid 划分三个区域：
 
-| 区域   | 位置           | 说明                                                                                              |
-| ------ | -------------- | ------------------------------------------------------------------------------------------------- |
-| 工作区 | 第 0 行第 0 列 | 标签页；随窗口缩放                                                                                |
+| 区域   | 位置           | 说明                                                                                                    |
+| ------ | -------------- | ------------------------------------------------------------------------------------------------------- |
+| 工作区 | 第 0 行第 0 列 | 标签页；随窗口缩放                                                                                      |
 | 信息栏 | 第 0 行第 1 列 | 宽度固定：`columnconfigure(1, minsize=SIDE_PANEL_WIDTH)`，内部 `Text` 使用 `width=1` 以免撑开列宽 |
-| 状态栏 | 第 1 行        | 高度固定、单行                                                                                    |
+| 状态栏 | 第 1 行        | 高度固定、单行                                                                                          |
 
 标签页分两类：
 
@@ -86,11 +81,11 @@
 
 字段映射与归档规则均可在界面中编辑，避免要求使用者手工编写 JSON：
 
-| 组件                               | 说明                                                                                                                                      |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `MappingDialog` / `ClassifyDialog` | 继承`_TableRuleDialog`，以 `ttk.Treeview` 展示规则行，支持添加/编辑/删除/上移/下移；确定后由 `collect()` 返回配置字典                     |
-| `_FieldsDialog`                    | 单行编辑弹窗，字段标签由子类的`edit_labels` 给出；尺寸按内容自适应后居中                                                                  |
-| `rules.py`                         | 纯逻辑：默认值、`mapping_rows` / `build_mapping`、`classify_rows` / `build_classify`（含扩展名规范化）、`write_temp_rules` / `read_rules` |
+| 组件                                   | 说明                                                                                                                                                  |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MappingDialog` / `ClassifyDialog` | 继承`_TableRuleDialog`，以 `ttk.Treeview` 展示规则行，支持添加/编辑/删除/上移/下移；确定后由 `collect()` 返回配置字典                           |
+| `_FieldsDialog`                      | 单行编辑弹窗，字段标签由子类的`edit_labels` 给出；尺寸按内容自适应后居中                                                                            |
+| `rules.py`                           | 纯逻辑：默认值、`mapping_rows` / `build_mapping`、`classify_rows` / `build_classify`（含扩展名规范化）、`write_temp_rules` / `read_rules` |
 
 数据流：`设置…` → 对话框返回配置字典 → `rules.write_temp_rules(kind, payload)` 写入
 `<系统临时目录>/info-map-rules/<kind>.json` → 路径回填到输入框 → 执行时按普通配置文件读取。
@@ -101,18 +96,17 @@
 
 主窗口与弹窗均由工具函数定位，不依赖窗口管理器的默认层叠位置：
 
-| 函数                             | 用途                                                                  |
-| -------------------------------- | --------------------------------------------------------------------- |
+| 函数                               | 用途                                                                       |
+| ---------------------------------- | -------------------------------------------------------------------------- |
 | `center_on_screen(window, w, h)` | 主窗口启动时按`MAIN_WIDTH` × `MAIN_HEIGHT` 居中到屏幕，无需先完成布局 |
-| `center_window(window, parent)`  | 弹窗居中到父窗口；父窗口不可见时（如测试环境）退回屏幕居中            |
-| `_frame_origin(window)`          | 取窗口外框左上角坐标，供居中计算使用                                  |
+| `center_window(window, parent)`  | 弹窗居中到父窗口；父窗口不可见时（如测试环境）退回屏幕居中                 |
+| `_frame_origin(window)`          | 取窗口外框左上角坐标，供居中计算使用                                       |
 
 两个约束：
 
 1. `center_window()` 必须在控件构建完成后调用。布局结束前 `wm_geometry()` 一律返回
    `1x1+0+0`，`winfo_width()` 也会返回 1，只有调用 `update_idletasks()` 之后才能取到真实尺寸。
-2. 居中必须使用 `wm_geometry()` 的 `+X+Y`（外框坐标），不能用 `winfo_rootx()` / `winfo_rooty()`。
-   后者返回客户区坐标，比外框右下偏移约 8 × 31 像素（Windows 实测），据此居中会让弹窗整体偏右下。
+2. 居中必须使用 `wm_geometry()` 的 `+X+Y`（外框坐标）
 
 ### 4.6 界面测试要点
 
@@ -251,10 +245,10 @@ python scripts\make_release.py --keep-build    # 保留 build/ 与 dist/ 以便�
 
 ### 两种形态的选择
 
-| 形态                    | 产物与体积                                                           | 启动                               | 分发方式                                                   |
-| ----------------------- | -------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------- |
-| 目录版（默认）          | `release/基层办公自动化助手/`；构建 41.8 秒 / 248.2 MB               | 直接启动，最快                     | 整个目录一起复制，或上传 `-win64-portable.zip`（107.3 MB） |
-| 单文件版（`--onefile`） | `release/基层办公自动化助手-单文件版/<exe>`；构建 58.2 秒 / 119.2 MB | 每次启动先解包到临时目录，明显变慢 | 只发一个 exe：`-win64-single-exe.exe`                      |
+| 形态                      | 产物与体积                                                             | 启动                               | 分发方式                                                    |
+| ------------------------- | ---------------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------- |
+| 目录版（默认）            | `release/基层办公自动化助手/`；构建 41.8 秒 / 248.2 MB               | 直接启动，最快                     | 整个目录一起复制，或上传`-win64-portable.zip`（107.3 MB） |
+| 单文件版（`--onefile`） | `release/基层办公自动化助手-单文件版/<exe>`；构建 58.2 秒 / 119.2 MB | 每次启动先解包到临时目录，明显变慢 | 只发一个 exe：`-win64-single-exe.exe`                     |
 
 两种形态各自写入独立目录，互不覆盖；exe 与 zip 的文件名均为 ASCII，中文名只出现在压缩包内的目录上
 （非 ASCII 文件名经命令行工具或 GitHub Release 上传时会被吞掉，见 `/memories/github-gh.md`）。
@@ -263,8 +257,8 @@ python scripts\make_release.py --keep-build    # 保留 build/ 与 dist/ 以便�
 
 下列资源不进包时会「构建成功但功能失效」
 
-| 资源                              | 体积     | 参数                 | 缺失后果                     |
-| --------------------------------- | -------- | -------------------- | ---------------------------- |
+| 资源                                | 体积     | 参数                   | 缺失后果                     |
+| ----------------------------------- | -------- | ---------------------- | ---------------------------- |
 | `rapidocr_onnxruntime` 模型与字典 | 约 16 MB | `--collect-all`      | 图片与扫描件无法识别         |
 | `onnxruntime` 运行时              | 约 37 MB | `--collect-binaries` | 创建 OCR 引擎时崩溃          |
 | `pypdfium2_raw\pdfium.dll`        | 约 7 MB  | `--collect-all`      | 扫描版 PDF 无法渲染          |
@@ -331,11 +325,11 @@ python scripts\make_package.py                 # wheel + sdist + 源码包
 python scripts\make_package.py --no-source     # 只要 wheel 与 sdist
 ```
 
-| 产物                                         | 体积   | 用途                                                                            |
-| -------------------------------------------- | ------ | ------------------------------------------------------------------------------- |
-| `information_mapper-<版本>-py3-none-any.whl` | 58 KB  | `pip install` 后提供 `info-map` 命令，界面用 `python -m information_mapper.gui` |
-| `information_mapper-<版本>.tar.gz`           | 69 KB  | sdist，供 pip 构建或源码分发                                                    |
-| `information-mapper-<版本>-source.zip`       | 460 KB | 含`scripts/`、`docs/`、`config/` 与两个 `.bat`，解压后双击「一键配置环境.bat」  |
+| 产物                                           | 体积   | 用途                                                                                   |
+| ---------------------------------------------- | ------ | -------------------------------------------------------------------------------------- |
+| `information_mapper-<版本>-py3-none-any.whl` | 58 KB  | `pip install` 后提供 `info-map` 命令，界面用 `python -m information_mapper.gui`  |
+| `information_mapper-<版本>.tar.gz`           | 69 KB  | sdist，供 pip 构建或源码分发                                                           |
+| `information-mapper-<版本>-source.zip`       | 460 KB | 含`scripts/`、`docs/`、`config/` 与两个 `.bat`，解压后双击「一键配置环境.bat」 |
 
 默认用 `--no-isolation` 本地构建，避免联网拉取构建依赖；失败时自动改用隔离环境重试。
 wheel 只包含 `src/information_mapper`，不含 `docs/`，因此 pip 安装后的「使用说明」页
@@ -346,10 +340,10 @@ wheel 只包含 `src/information_mapper`，不含 `docs/`，因此 pip 安装后
 
 仓库内只保留源码、脚本、文档、示例配置与测试，其余内容分三类处理：
 
-| 目录                                           | 内容                                               | 是否入库            |
-| ---------------------------------------------- | -------------------------------------------------- | ------------------- |
-| `materials/`                                   | 演示视频、答辩材料、软件截图、实践证明等材料与证明 | 已忽略（约 103 MB） |
-| `release/`、`packages/`                        | 两个版本的构建产物                                 | 已忽略              |
+| 目录                                                   | 内容                                               | 是否入库            |
+| ------------------------------------------------------ | -------------------------------------------------- | ------------------- |
+| `materials/`                                         | 演示视频、答辩材料、软件截图、实践证明等材料与证明 | 已忽略（约 103 MB） |
+| `release/`、`packages/`                            | 两个版本的构建产物                                 | 已忽略              |
 | `build/`、`dist/`、`output/`、`self-check.txt` | 中间产物与运行输出                                 | 已忽略              |
 
 `materials/` 按用途分「演示视频 / 答辩材料 / 证明材料 / 素材 / 截图」五个子目录；

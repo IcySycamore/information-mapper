@@ -178,6 +178,20 @@ pytest -q
 
 测试全部离线运行，不产生真实网络请求。
 
+## 打包发布
+
+维护者可用 PyInstaller 生成免安装版，使用者无需安装 Python：
+
+```powershell
+python -m pip install pyinstaller              # 仅首次
+python scripts\make_release.py                 # 目录版（推荐，启动快）+ 产物自检
+python scripts\make_release.py --onefile --zip # 单文件 exe，并附压缩包
+```
+
+产物在 `release/基层办公自动化助手/`。脚本会把 OCR 模型、onnxruntime 运行时、`pdfium.dll`
+与 `docs/USER_GUIDE.md` 一并打进包内，再用 `--self-check` 启动产物核对依赖、模型与手册，
+自检不通过即视为构建失败。详见 `docs/DEV_GUIDE.md` 第 10 章。
+
 ## 文档
 
 | 文档                 | 读者               |

@@ -5,5 +5,11 @@ __pycache__/
 *.egg-info/
 output/
 
+# 打包产物
+build/
+dist/
+release/
+self-check.txt
+
 # 大体积演示素材（超出 GitHub 建议的单文件体积，按需单独上传）
 *.mp4

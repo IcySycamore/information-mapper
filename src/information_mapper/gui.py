@@ -234,16 +234,33 @@ def support_text(contacts: dict[str, str] | None = None, environment: dict[str, 
     return "\n".join(lines)
 
 
+
+def manual_roots() -> list[Path]:
+    """说明书查找根目录，按优先级排列。
+
+    PyInstaller 打包后需额外看两处：解包目录 `sys._MEIPASS`（`--add-data` 放进包内的
+    `docs/` 在那里）与可执行文件所在目录（随包分发的 `docs/` 在那里）。
+    源码运行时则回到项目根目录。
+    """
+    roots: list[Path] = []
+    bundle = getattr(sys, "_MEIPASS", None)
+    if bundle:
+        roots.append(Path(bundle))
+    if getattr(sys, "frozen", False):
+        roots.append(Path(sys.executable).resolve().parent)
+    else:
+        roots.append(Path(__file__).resolve().parents[2])  # 源码布局：<项目根>/docs
+    roots.append(Path.cwd())
+    roots.append(Path(__file__).resolve().parent)
+    return list(dict.fromkeys(roots))
+
+
 def manual_path() -> Path | None:
-    """定位说明书文档：优先项目 docs 目录，其次当前工作目录。"""
-    candidates = [
-        Path(__file__).resolve().parents[2] / "docs" / MANUAL_FILENAME,
-        Path.cwd() / "docs" / MANUAL_FILENAME,
-        Path(__file__).resolve().parent / MANUAL_FILENAME,
-    ]
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
+    """定位说明书文档：解包目录 → 可执行文件目录 → 项目根目录 → 当前工作目录。"""
+    for root in manual_roots():
+        for candidate in (root / "docs" / MANUAL_FILENAME, root / MANUAL_FILENAME):
+            if candidate.is_file():
+                return candidate
     return None
 
 
@@ -253,6 +270,18 @@ def read_manual() -> tuple[str, Path | None]:
     if path is None:
         return _FALLBACK_MANUAL, None
     return path.read_text(encoding="utf-8"), path
+
+
+def report_failure(message: str) -> None:
+    """报告启动失败：有控制台时输出到 stderr，打包后的窗口版弹系统消息框。"""
+    print(message, file=sys.stderr)
+    if sys.platform.startswith("win") and sys.stdout is None:  # 窗口版没有控制台
+        try:
+            import ctypes
+
+            ctypes.windll.user32.MessageBoxW(None, message, "启动失败", 0x10)
+        except Exception:  # pragma: no cover - 极端环境下消息框也不可用
+            pass
 
 
 def open_document(path: str | Path) -> bool:
@@ -1676,8 +1705,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     started = time.perf_counter()
     try:
         app = OfficeAssistantApp(startup_started=started)
-    except Exception as error:  # 界面都起不来时只能写日志并抛出
-        print(f"启动失败：{type(error).__name__}: {error}", file=sys.stderr)
+    except Exception as error:  # 界面都起不来时只能尽力提示
+        report_failure(f"启动失败：{type(error).__name__}: {error}")
         return 1
     if arguments and Path(arguments[0]).exists():
         app.report_inputs.set_paths([arguments[0]])  # 支持把文件/目录带到输入列表

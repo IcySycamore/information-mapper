@@ -224,6 +224,8 @@ python scripts\make_demo_data.py
 7. 在干净环境双击 `一键配置环境.bat`，应完成依赖安装并通过自检；
    输出中应能看到 ".xls 读取组件检查通过" 与 "OCR 组件检查通过"。
 8. OCR 链路：用一张含文字的图片验证 `read_image()` 能返回记录；扫描版 PDF 应自动回退到 OCR。
+9. 需要交付免安装版时，`python scripts\make_release.py` 应输出「自检结果：通过」，
+   且报告中 `打包运行：是`、`OCR 模型：3 个`、`OCR 识别：成功`、`界面构建：成功（8 个标签页）` 均符合预期。
 
 ## 9. 已知限制
 
@@ -232,3 +234,87 @@ python scripts\make_demo_data.py
 - 复杂表头按首行取值。
 - 文本编码依赖自动探测（UTF-8 / GBK / GB18030 等），非常规编码需先转换。
 - 图形界面的自动化测试依赖桌面环境，无显示环境下相关用例会被跳过。
+
+## 10. 打包与发布
+
+免安装版由 `scripts/make_release.py` 调用 PyInstaller 生成，面向没有 Python 环境的使用者。
+
+```powershell
+python -m pip install pyinstaller              # 维护者一次性准备（已列入 pyproject 的 dev 额外依赖）
+python scripts\make_release.py                 # 目录版（默认，推荐）
+python scripts\make_release.py --onefile       # 单文件 exe
+python scripts\make_release.py --zip           # 额外生成 zip，供 Release 附件上传
+python scripts\make_release.py --keep-build    # 保留 build/ 与 dist/ 以便排查
+```
+
+### 两种形态的选择
+
+| 形态                    | 启动                                       | 说明                                                               |
+| ----------------------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| 目录版（默认）          | 直接启动                                   | 实测构建 41.8 秒，裁剪后 248.2 MB；分发整个目录（含 `_internal/`） |
+| 单文件版（`--onefile`） | 每次启动先解包到临时目录，大体积下明显变慢 | 实测构建 54.3 秒、119.2 MB；只需发一个 exe                         |
+
+### 必须显式收集的资源
+
+下列资源不进包时会「构建成功但功能失效」，是打包的主要坑位：
+
+| 资源                              | 体积     | 参数                 | 缺失后果                     |
+| --------------------------------- | -------- | -------------------- | ---------------------------- |
+| `rapidocr_onnxruntime` 模型与字典 | 约 16 MB | `--collect-all`      | 图片与扫描件无法识别         |
+| `onnxruntime` 运行时              | 约 37 MB | `--collect-binaries` | 创建 OCR 引擎时崩溃          |
+| `pypdfium2_raw\pdfium.dll`        | 约 7 MB  | `--collect-all`      | 扫描版 PDF 无法渲染          |
+| `docs/USER_GUIDE.md`              | 12 KB    | `--add-data`         | 「使用说明」页退化为内置简版 |
+
+体积主要来自 `cv2`（111.8 MB）、`onnxruntime`（35.8 MB）与 `numpy`（26.3 MB）。
+其中 `cv2\opencv_videoio_ffmpeg500_64.dll`（29.4 MB）仅在调用 `cv2.VideoCapture`
+等视频接口时才加载，由 `assemble()` 末尾的 `trim()` 在构建后删除，目录版因此
+从 277.6 MB 降到 248.2 MB。该文件仅存在于目录版；单文件版的资源在包内，无法裁剪。
+自检中的真实 OCR 识别在裁剪后运行，可用于确认裁剪未破坏图像链路。
+
+入口脚本固定为 `scripts/gui_app.py`，构建名用 ASCII（`OfficeAssistant`），组装到发布目录时
+再改名为 `基层办公自动化助手.exe`，避开工具链对非 ASCII 路径的兼容问题。
+
+### 打包后的路径解析
+
+tkinter/PyInstaller 环境下的路径与源码运行不同，已在 `gui.manual_roots()` 中统一处理：
+
+1. `sys._MEIPASS`：**包内资源目录**，`--add-data` 放进去的 `docs/` 在这里；
+2. `sys.executable` 所在目录：随包分发的 `docs/` 在这里（使用者可单独打开手册）；
+3. 源码布局的项目根目录与当前工作目录。
+
+`gui_app.py` 在打包后不再插入 `src/` 到 `sys.path`，模块由 PyInstaller 提供。
+
+### 产物结构与分发
+
+```
+release/基层办公自动化助手/
+  基层办公自动化助手.exe     主程序
+  _internal/                 运行时（目录版；勿删、勿改名）
+  docs/USER_GUIDE.md         手册独立副本
+  config/*.example.json      示例配置（uploader 的报错提示会引用该路径）
+  README.md
+  使用说明.txt               由 make_release.py 生成，联系方式取自 SUPPORT_CONTACTS
+```
+
+`build/`、`dist/`、`release/` 与 `self-check.txt` 均已加入 `.gitignore`；
+体积远超仓库限制的 zip 应作为 GitHub Release 附件上传，不要提交。
+
+### 产物自检
+
+构建完成后脚本会用 `--self-check` 启动产物（`scripts/gui_app.py`）：
+
+- 记录版本、Python 版本、`sys._MEIPASS` 与手册实际路径；
+- 逐项校验 pandas / openpyxl / python-docx / pypdf / xlrd / Pillow / OCR 组件；
+- 核对 OCR 模型数量与 `pdfium.dll` 是否存在（即上表的收集项）；
+- 真实加载一次 OCR 引擎，并用 Pillow 生成图片跑通一次完整识别（`read_image()`），
+  确认 onnxruntime 与 cv2 在裁剪后仍可用；
+- 真实构建一次 `OfficeAssistantApp`（移到屏幕外），确认 tkinter 与 8 个标签页正常。
+
+窗口版（`--windowed`）不显示异常堆栈，启动期错误几乎是静默失败，因此以上检查不能省。
+结果写入当前目录的 `self-check.txt`，脚本读取后判定成败并删除该文件。
+
+### 与源码运行的区别
+
+- `report_failure()` / `gui_app.fatal()`：无控制台时改用系统消息框提示启动失败。
+- `scripts/setup_env.py` 不安装 PyInstaller，基层使用者的环境保持精简。
+- exe 为窗口版（`--windowed`），没有控制台；排查问题靠 `--self-check` 报告与界面右侧「消息」栏。

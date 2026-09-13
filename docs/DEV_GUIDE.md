@@ -1,27 +1,23 @@
 # 开发手册
 
-## 1. 设计约束
+## 1. 设计哲学
 
-1. **单文件即一个批次**：读取、映射、写出均以"记录集合"为单位，单文件与批量走同一条代码路径。
-2. **单份失败不中断整批**：解析失败的文件被跳过并记录原因，失败清单回传调用方。
-3. **命令行默认安全，界面默认直连**：命令行下 `classify`、`upload` 需显式 `--apply` 才执行；
-   图形界面不设预演步骤，但上传前提供 Ping 连通性测试，且输入框不预填占位内容。
-4. **界面与命令行为同一实现**：界面只负责收集参数，业务逻辑集中在可独立测试的服务函数中。
+安全性>性能>可扩展性
 
 ## 2. 模块职责
 
-| 模块            | 职责                                        | 主要接口                                                                                                                             |
-| --------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `formats.py`    | 格式注册表：可读、可写、格式分类            | `INPUT_SUFFIXES` `OUTPUT_SUFFIXES` `format_kind` `support_matrix`                                                                    |
-| `core.py`       | 字段映射（纯函数，无 IO）                   | `map_records(records, target_headers, field_mapping)`                                                                                |
+| 模块              | 职责                                        | 主要接口                                                                                                                                             |
+| ----------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `formats.py`    | 格式注册表：可读、可写、格式分类            | `INPUT_SUFFIXES` `OUTPUT_SUFFIXES` `format_kind` `support_matrix`                                                                            |
+| `core.py`       | 字段映射（纯函数，无 IO）                   | `map_records(records, target_headers, field_mapping)`                                                                                              |
 | `readers.py`    | 多格式读取、目录批量读取、图片/扫描件 OCR   | `read_any` `read_folder` `iter_input_files` `read_image` `ocr_pdf_text` `ocr_available` `is_plain_content` `content_of`              |
-| `writers.py`    | 记录写出、正文直转、Excel/CSV 追加          | `write_output` `write_text_document`                                                                                                 |
-| `converters.py` | 格式转换（单文件 / 整目录）                 | `convert_file` `convert_folder` `normalize_target_format`                                                                            |
-| `merger.py`     | 多文档合并为一个文档                        | `merge_any` `merge_tables` `merge_word_documents` `merge_text_documents` `collect_headers` `pick_mode`                               |
-| `classify.py`   | 按规则归档                                  | `ClassifyConfig` `plan_moves` `apply_moves` `organize`                                                                               |
+| `writers.py`    | 记录写出、正文直转、Excel/CSV 追加          | `write_output` `write_text_document`                                                                                                             |
+| `converters.py` | 格式转换（单文件 / 整目录）                 | `convert_file` `convert_folder` `normalize_target_format`                                                                                      |
+| `merger.py`     | 多文档合并为一个文档                        | `merge_any` `merge_tables` `merge_word_documents` `merge_text_documents` `collect_headers` `pick_mode`                                   |
+| `classify.py`   | 按规则归档                                  | `ClassifyConfig` `plan_moves` `apply_moves` `organize`                                                                                       |
 | `rules.py`      | 规则默认值、界面行与配置字典互转、临时 JSON | `DEFAULT_MAPPING` `DEFAULT_CLASSIFY` `mapping_rows` `build_mapping` `classify_rows` `build_classify` `write_temp_rules` `read_rules` |
-| `uploader.py`   | 上传与连通性测试                            | `UploadConfig` `build_request` `upload_file` `upload_folder` `ping_server`                                                           |
-| `cli.py`        | 命令行入口（含旧式调用兼容）                | `main(argv)` `build_parser`                                                                                                          |
+| `uploader.py`   | 上传与连通性测试                            | `UploadConfig` `build_request` `upload_file` `upload_folder` `ping_server`                                                                 |
+| `cli.py`        | 命令行入口                                  | `main(argv)` `build_parser`                                                                                                                      |
 | `gui.py`        | 图形界面与服务层                            | `OfficeAssistantApp`、`run_report` / `run_convert` / `run_merge` / `run_scan` / `run_classify` / `run_upload` / `ping_upload`        |
 
 ## 3. 数据流与记录约定
@@ -29,19 +25,19 @@
 ```
 输入文件 ──read_any──> records: list[dict]
                           │
-                          ├─ map_records（可选：字段映射）
+                          ├─ map_records（字段映射）
                           │
                           └─ 合并/转换策略 ──> write_output / write_text_document ──> 输出文件
 ```
 
 `readers` 的返回约定：
 
-| 情况                           | 返回值                                    |
-| ------------------------------ | ----------------------------------------- |
-| 有结构（表格行、`字段：内容`） | `[{"字段": "值", ...}, ...]`              |
-| 无结构（正文、无键值文本）     | `[{"内容": "整篇正文"}]`                  |
-| 解析不到内容                   | `[]`                                      |
-| 格式不支持                     | `raise ValueError("不支持的输入格式：…")` |
+| 情况                             | 返回值                                       |
+| -------------------------------- | -------------------------------------------- |
+| 有结构（表格行、`字段：内容`） | `[{"字段": "值", ...}, ...]`               |
+| 无结构（正文、无键值文本）       | `[{"内容": "整篇正文"}]`                   |
+| 解析不到内容                     | `[]`                                       |
+| 格式不支持                       | `raise ValueError("不支持的输入格式：…")` |
 
 - 表格类输入天然是记录；正文类输入用 `is_plain_content()` 判定，转换时走"原文直转"。
 - 批量读取默认 `skip_errors=True`，失败项写入传入的 `failed` 列表。
@@ -52,11 +48,11 @@
 
 主窗口使用 grid 划分三个区域：
 
-| 区域   | 位置           | 说明                                                                                              |
-| ------ | -------------- | ------------------------------------------------------------------------------------------------- |
-| 工作区 | 第 0 行第 0 列 | 标签页；随窗口缩放                                                                                |
+| 区域   | 位置           | 说明                                                                                                    |
+| ------ | -------------- | ------------------------------------------------------------------------------------------------------- |
+| 工作区 | 第 0 行第 0 列 | 标签页；随窗口缩放                                                                                      |
 | 信息栏 | 第 0 行第 1 列 | 宽度固定：`columnconfigure(1, minsize=SIDE_PANEL_WIDTH)`，内部 `Text` 使用 `width=1` 以免撑开列宽 |
-| 状态栏 | 第 1 行        | 高度固定、单行                                                                                    |
+| 状态栏 | 第 1 行        | 高度固定、单行                                                                                          |
 
 标签页分两类：
 
@@ -85,11 +81,11 @@
 
 字段映射与归档规则均可在界面中编辑，避免要求使用者手工编写 JSON：
 
-| 组件                               | 说明                                                                                                                                      |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `MappingDialog` / `ClassifyDialog` | 继承 `_TableRuleDialog`，以 `ttk.Treeview` 展示规则行，支持添加/编辑/删除/上移/下移；确定后由 `collect()` 返回配置字典                    |
-| `_FieldsDialog`                    | 单行编辑弹窗，字段标签由子类的 `edit_labels` 给出；尺寸按内容自适应后居中                                                                 |
-| `rules.py`                         | 纯逻辑：默认值、`mapping_rows` / `build_mapping`、`classify_rows` / `build_classify`（含扩展名规范化）、`write_temp_rules` / `read_rules` |
+| 组件                                   | 说明                                                                                                                                                  |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MappingDialog` / `ClassifyDialog` | 继承`_TableRuleDialog`，以 `ttk.Treeview` 展示规则行，支持添加/编辑/删除/上移/下移；确定后由 `collect()` 返回配置字典                           |
+| `_FieldsDialog`                      | 单行编辑弹窗，字段标签由子类的`edit_labels` 给出；尺寸按内容自适应后居中                                                                            |
+| `rules.py`                           | 纯逻辑：默认值、`mapping_rows` / `build_mapping`、`classify_rows` / `build_classify`（含扩展名规范化）、`write_temp_rules` / `read_rules` |
 
 数据流：`设置…` → 对话框返回配置字典 → `rules.write_temp_rules(kind, payload)` 写入
 `<系统临时目录>/info-map-rules/<kind>.json` → 路径回填到输入框 → 执行时按普通配置文件读取。
@@ -100,11 +96,11 @@
 
 主窗口与弹窗均由工具函数定位，不依赖窗口管理器的默认层叠位置：
 
-| 函数                             | 用途                                                                   |
-| -------------------------------- | ---------------------------------------------------------------------- |
-| `center_on_screen(window, w, h)` | 主窗口启动时按 `MAIN_WIDTH` × `MAIN_HEIGHT` 居中到屏幕，无需先完成布局 |
-| `center_window(window, parent)`  | 弹窗居中到父窗口；父窗口不可见时（如测试环境）退回屏幕居中             |
-| `_frame_origin(window)`          | 取窗口外框左上角坐标，供居中计算使用                                   |
+| 函数                               | 用途                                                                       |
+| ---------------------------------- | -------------------------------------------------------------------------- |
+| `center_on_screen(window, w, h)` | 主窗口启动时按`MAIN_WIDTH` × `MAIN_HEIGHT` 居中到屏幕，无需先完成布局 |
+| `center_window(window, parent)`  | 弹窗居中到父窗口；父窗口不可见时（如测试环境）退回屏幕居中                 |
+| `_frame_origin(window)`          | 取窗口外框左上角坐标，供居中计算使用                                       |
 
 两个约束：
 
@@ -205,20 +201,14 @@ python scripts\make_demo_data.py
 ### 批处理的编码约束
 
 `一键配置环境.bat`、`启动界面.bat` 为 UTF-8 无 BOM 文件，配合 `chcp 65001` 使用。
-经实测，cmd 在该代码页下解析含中文的较长行时可能发生字节错位，导致 `echo` 内容被当作命令执行。
-
-因此遵循以下约定：
-
-- 批处理只保留定位 Python 解释器的逻辑与极短中文提示，其余逻辑与中文输出全部放在 `scripts/setup_env.py`。
-- 设置 `PYTHONUTF8=1`、`PYTHONIOENCODING=utf-8`，避免 Python 输出与 cmd 代码页不一致导致乱码。
-- 探测解释器必须实际执行 `X -c "import sys"` 并判断返回值；`where` 能定位到 `py.exe` 不代表 `py -3` 可用。
+经实测，cmd 在该代码页下解析含中文的较长行时可能发生字节错位
 
 ## 8. 回归检查清单
 
 1. `pytest -q` 全部通过。
 2. `info-map formats` 输出正常。
 3. `python scripts\make_demo_data.py` 生成演示数据。
-4. 依次执行 `report`、`merge`、`convert`、`scan`、`classify`（预演）、`upload`（预演）。
+4. 依次执行 `report`、`merge`、`convert`、`scan`、`classify`（预操作）、`upload`（预操作）。
 5. 确认 `upload --apply` 在占位符未替换时仍被拒绝。
 6. 图形界面：8 个标签页存在；切换标签页时信息栏说明随之更新；执行一次任务后状态栏显示 `成功 · …` 并自动复位。
 7. 在干净环境双击 `一键配置环境.bat`，应完成依赖安装并通过自检；
@@ -240,12 +230,7 @@ python scripts\make_demo_data.py
 
 ## 10. 打包与发布
 
-项目按交付形态分两个版本，产物目录分开存放，均不进入仓库：
-
-| 版本        | 产物目录    | 生成方式                  | 适用对象                           |
-| ----------- | ----------- | ------------------------- | ---------------------------------- |
-| 免安装版    | `release/`  | `scripts/make_release.py` | 没有 Python 环境的基层使用者       |
-| Python 库版 | `packages/` | `scripts/make_package.py` | 有 Python 环境，需命令行或二次开发 |
+项目按交付形态分两个版本
 
 ### 免安装版（release/）
 
@@ -261,17 +246,17 @@ python scripts\make_release.py --keep-build    # 保留 build/ 与 dist/ 以便�
 
 ### 两种形态的选择
 
-| 形态                    | 启动                                       | 说明                                                               |
-| ----------------------- | ------------------------------------------ | ------------------------------------------------------------------ |
-| 目录版（默认）          | 直接启动                                   | 实测构建 41.8 秒，裁剪后 248.2 MB；分发整个目录（含 `_internal/`） |
-| 单文件版（`--onefile`） | 每次启动先解包到临时目录，大体积下明显变慢 | 实测构建 54.3 秒、119.2 MB；只需发一个 exe                         |
+| 形态                      | 启动                                       | 说明                                                               |
+| ------------------------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| 目录版（默认）            | 直接启动                                   | 平均构建时长 41+ 秒， 248.2 MB；分发整个目录（含`_internal/`） |
+| 单文件版（`--onefile`） | 每次启动先解包到临时目录，大体积下明显变慢 |  `平均构建时长`54.3 秒、119.2 MB；分发发一个 exe                 |
 
-### 必须显式收集的资源
+### 必须显式确保收集的资源
 
-下列资源不进包时会「构建成功但功能失效」，是打包的主要坑位：
+下列资源不进包时会「构建成功但功能失效」
 
-| 资源                              | 体积     | 参数                 | 缺失后果                     |
-| --------------------------------- | -------- | -------------------- | ---------------------------- |
+| 资源                                | 体积     | 参数                   | 缺失后果                     |
+| ----------------------------------- | -------- | ---------------------- | ---------------------------- |
 | `rapidocr_onnxruntime` 模型与字典 | 约 16 MB | `--collect-all`      | 图片与扫描件无法识别         |
 | `onnxruntime` 运行时              | 约 37 MB | `--collect-binaries` | 创建 OCR 引擎时崩溃          |
 | `pypdfium2_raw\pdfium.dll`        | 约 7 MB  | `--collect-all`      | 扫描版 PDF 无法渲染          |
@@ -279,12 +264,10 @@ python scripts\make_release.py --keep-build    # 保留 build/ 与 dist/ 以便�
 
 体积主要来自 `cv2`（111.8 MB）、`onnxruntime`（35.8 MB）与 `numpy`（26.3 MB）。
 其中 `cv2\opencv_videoio_ffmpeg500_64.dll`（29.4 MB）仅在调用 `cv2.VideoCapture`
-等视频接口时才加载，由 `assemble()` 末尾的 `trim()` 在构建后删除，目录版因此
-从 277.6 MB 降到 248.2 MB。该文件仅存在于目录版；单文件版的资源在包内，无法裁剪。
-自检中的真实 OCR 识别在裁剪后运行，可用于确认裁剪未破坏图像链路。
+等视频接口时才加载，`assemble()` 末尾的 `trim()` 在构建后删除
 
 入口脚本固定为 `scripts/gui_app.py`，构建名用 ASCII（`OfficeAssistant`），组装到发布目录时
-再改名为 `基层办公自动化助手.exe`，避开工具链对非 ASCII 路径的兼容问题。
+会改名为 `基层办公自动化助手.exe`
 
 ### 打包后的路径解析
 
@@ -307,9 +290,6 @@ release/基层办公自动化助手/
   README.md
   使用说明.txt               由 make_release.py 生成，联系方式取自 SUPPORT_CONTACTS
 ```
-
-`build/`、`dist/`、`release/` 与 `self-check.txt` 均已加入 `.gitignore`；
-体积远超仓库限制的 zip 应作为 GitHub Release 附件上传，不要提交。
 
 ### 产物自检
 
@@ -339,11 +319,11 @@ python scripts\make_package.py                 # wheel + sdist + 源码包
 python scripts\make_package.py --no-source     # 只要 wheel 与 sdist
 ```
 
-| 产物                                         | 体积   | 用途                                                                            |
-| -------------------------------------------- | ------ | ------------------------------------------------------------------------------- |
-| `information_mapper-<版本>-py3-none-any.whl` | 58 KB  | `pip install` 后提供 `info-map` 命令，界面用 `python -m information_mapper.gui` |
-| `information_mapper-<版本>.tar.gz`           | 69 KB  | sdist，供 pip 构建或源码分发                                                    |
-| `information-mapper-<版本>-源码.zip`         | 120 KB | 含 `scripts/`、`docs/`、`config/` 与两个 `.bat`，解压后双击「一键配置环境.bat」 |
+| 产物                                           | 体积   | 用途                                                                                   |
+| ---------------------------------------------- | ------ | -------------------------------------------------------------------------------------- |
+| `information_mapper-<版本>-py3-none-any.whl` | 58 KB  | `pip install` 后提供 `info-map` 命令，界面用 `python -m information_mapper.gui`  |
+| `information_mapper-<版本>.tar.gz`           | 69 KB  | sdist，供 pip 构建或源码分发                                                           |
+| `information-mapper-<版本>-源码.zip`         | 120 KB | 含`scripts/`、`docs/`、`config/` 与两个 `.bat`，解压后双击「一键配置环境.bat」 |
 
 默认用 `--no-isolation` 本地构建，避免联网拉取构建依赖；失败时自动改用隔离环境重试。
 wheel 只包含 `src/information_mapper`，不含 `docs/`，因此 pip 安装后的「使用说明」页
@@ -354,10 +334,10 @@ wheel 只包含 `src/information_mapper`，不含 `docs/`，因此 pip 安装后
 
 仓库内只保留源码、脚本、文档、示例配置与测试，其余内容分三类处理：
 
-| 目录                                           | 内容                                               | 是否入库            |
-| ---------------------------------------------- | -------------------------------------------------- | ------------------- |
-| `materials/`                                   | 演示视频、答辩材料、软件截图、实践证明等材料与证明 | 已忽略（约 103 MB） |
-| `release/`、`packages/`                        | 两个版本的构建产物                                 | 已忽略              |
+| 目录                                                   | 内容                                               | 是否入库            |
+| ------------------------------------------------------ | -------------------------------------------------- | ------------------- |
+| `materials/`                                         | 演示视频、答辩材料、软件截图、实践证明等材料与证明 | 已忽略（约 103 MB） |
+| `release/`、`packages/`                            | 两个版本的构建产物                                 | 已忽略              |
 | `build/`、`dist/`、`output/`、`self-check.txt` | 中间产物与运行输出                                 | 已忽略              |
 
 `materials/` 按用途分「演示视频 / 答辩材料 / 证明材料 / 素材 / 截图」五个子目录；
@@ -365,25 +345,6 @@ wheel 只包含 `src/information_mapper`，不含 `docs/`，因此 pip 安装后
 
 ### 许可与第三方组件
 
-- 项目本体以 MIT 发布（`LICENSE`），`pyproject.toml` 中通过 `license = "MIT"`
-  与 `license-files = ["LICENSE"]` 声明（PEP 639 写法，需 setuptools ≥ 77）。
-- 免安装版会分发 numpy、pandas、OpenCV、rapidocr-onnxruntime（含 PP-OCR 模型，源自 PaddleOCR）、
-  onnxruntime、pdfium 等组件，均为 BSD / MIT / Apache-2.0，与 MIT 兼容；
-  完整清单见 `README.md` 的「许可」章节。
-- PyInstaller 为 GPLv2 **附例外条款**，构建出的 exe 不受 GPL 约束。
-- 对外发布时不要删除依赖包自带的许可证文件；`LICENSE` 中的版权人如需更名，
-  同时修改 `pyproject.toml` 的 `authors` 字段。
-
-### README 界面截图
-
-`docs/images/gui-<页名>.png` 由 `scripts/make_screenshots.py` 生成，界面改版后重新运行即可：
-
-```powershell
-python scripts\make_screenshots.py                  # 六个功能页全部重截
-python scripts\make_screenshots.py --tabs upload    # 只截指定页
-```
-
-脚本启动主窗口（置顶、固定几何），逐页 `notebook.select()` 后按窗口外框截图。三个必要细节：
-先把进程设为 DPI 感知（否则在高缩放比下坐标错位、截图偏移）、取 `GetAncestor(hwnd, GA_ROOT)`
-的外框矩形（保证标题栏入图）、每次切换标签页后 `update()` 并短暂停留（否则截到未重绘的旧画面）。
-文件名保持固定，README 中的引用无需改动。
+- 项目本体以 MIT 发布
+- 免安装版会分发 numpy、pandas、OpenCV、rapidocr-onnxruntime（含 PP-OCR 模型，源自 PaddleOCR）
+- PyInstaller  GPLv2 **附例外条款**，构建出的 exe 不受 GPL 约束。

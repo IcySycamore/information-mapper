@@ -368,8 +368,22 @@ wheel 只包含 `src/information_mapper`，不含 `docs/`，因此 pip 安装后
 - 项目本体以 MIT 发布（`LICENSE`），`pyproject.toml` 中通过 `license = "MIT"`
   与 `license-files = ["LICENSE"]` 声明（PEP 639 写法，需 setuptools ≥ 77）。
 - 免安装版会分发 numpy、pandas、OpenCV、rapidocr-onnxruntime（含 PP-OCR 模型，源自 PaddleOCR）、
-onnxruntime、pdfium 等组件，均为 BSD / MIT / Apache-2.0，与 MIT 兼容；
+  onnxruntime、pdfium 等组件，均为 BSD / MIT / Apache-2.0，与 MIT 兼容；
   完整清单见 `README.md` 的「许可」章节。
 - PyInstaller 为 GPLv2 **附例外条款**，构建出的 exe 不受 GPL 约束。
 - 对外发布时不要删除依赖包自带的许可证文件；`LICENSE` 中的版权人如需更名，
   同时修改 `pyproject.toml` 的 `authors` 字段。
+
+### README 界面截图
+
+`docs/images/gui-<页名>.png` 由 `scripts/make_screenshots.py` 生成，界面改版后重新运行即可：
+
+```powershell
+python scripts\make_screenshots.py                  # 六个功能页全部重截
+python scripts\make_screenshots.py --tabs upload    # 只截指定页
+```
+
+脚本启动主窗口（置顶、固定几何），逐页 `notebook.select()` 后按窗口外框截图。三个必要细节：
+先把进程设为 DPI 感知（否则在高缩放比下坐标错位、截图偏移）、取 `GetAncestor(hwnd, GA_ROOT)`
+的外框矩形（保证标题栏入图）、每次切换标签页后 `update()` 并短暂停留（否则截到未重绘的旧画面）。
+文件名保持固定，README 中的引用无需改动。

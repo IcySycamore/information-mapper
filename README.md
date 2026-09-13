@@ -151,8 +151,12 @@ info-map --input data\source.xlsx --output output\result.xlsx --mapping config\m
 
 ```
 config/                 示例配置
-data/                   输入数据
-output/                 输出结果（已加入 .gitignore）
+data/                   演示用输入文件
+output/                 输出结果（已忽略）
+materials/              项目材料与证明：演示视频、答辩材料、截图、实践证明等
+                        整目录已加入 .gitignore，不随仓库分发
+release/                免安装版产物（scripts/make_release.py 生成，已忽略）
+packages/               Python 库版产物（scripts/make_package.py 生成，已忽略）
 src/information_mapper/
   formats.py            格式注册表
   readers.py            多格式读取、目录批量读取
@@ -165,10 +169,12 @@ src/information_mapper/
   uploader.py           自动上传（含 Ping）
   cli.py                命令行入口
   gui.py                图形界面与服务层
-scripts/                独立脚本与一键环境配置
+scripts/                独立脚本、一键环境配置与打包脚本
 tests/                  测试
 docs/                   用户手册、开发手册
 ```
+
+仓库内只保留源码、脚本、文档、示例配置与测试；材料与各类构建产物均在忽略列表中。
 
 ## 测试
 
@@ -180,17 +186,23 @@ pytest -q
 
 ## 打包发布
 
-维护者可用 PyInstaller 生成免安装版，使用者无需安装 Python：
+项目按交付形态分两个版本，产物分开存放在不同目录，均不进入仓库：
+
+| 版本         | 产物目录   | 生成方式                    | 适用对象                             |
+| ------------ | ---------- | --------------------------- | ------------------------------------ |
+| 免安装版     | `release/` | `scripts/make_release.py`   | 没有 Python 环境的基层使用者         |
+| Python 库版  | `packages/` | `scripts/make_package.py`  | 有 Python 环境，需命令行或二次开发    |
 
 ```powershell
-python -m pip install pyinstaller              # 仅首次
-python scripts\make_release.py                 # 目录版（推荐，启动快）+ 产物自检
-python scripts\make_release.py --onefile --zip # 单文件 exe，并附压缩包
+python -m pip install pyinstaller build            # 仅首次
+python scripts\make_release.py                     # 免安装版：目录版（推荐）+ 产物自检
+python scripts\make_release.py --onefile --zip     # 免安装版：单文件 exe，并附压缩包
+python scripts\make_package.py                     # 库版：wheel + sdist + 源码包
 ```
 
-产物在 `release/基层办公自动化助手/`。脚本会把 OCR 模型、onnxruntime 运行时、`pdfium.dll`
-与 `docs/USER_GUIDE.md` 一并打进包内，再用 `--self-check` 启动产物核对依赖、模型与手册，
-自检不通过即视为构建失败。详见 `docs/DEV_GUIDE.md` 第 10 章。
+免安装版会把 OCR 模型、onnxruntime 运行时、`pdfium.dll` 与 `docs/USER_GUIDE.md` 一并打进包内，
+再用 `--self-check` 启动产物核对依赖、模型与界面，自检不通过即视为构建失败。
+详见 `docs/DEV_GUIDE.md` 第 10 章。
 
 ## 文档
 

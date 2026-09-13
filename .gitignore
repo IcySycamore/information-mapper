@@ -5,11 +5,15 @@ __pycache__/
 *.egg-info/
 output/
 
-# 打包产物
+# 构建与发布产物
 build/
 dist/
 release/
+packages/
 self-check.txt
+
+# 项目材料与证明（演示视频、答辩材料、截图、实践证明等，不随仓库分发）
+materials/
 
 # 大体积演示素材（超出 GitHub 建议的单文件体积，按需单独上传）
 *.mp4

@@ -237,7 +237,16 @@ python scripts\make_demo_data.py
 
 ## 10. 打包与发布
 
-免安装版由 `scripts/make_release.py` 调用 PyInstaller 生成，面向没有 Python 环境的使用者。
+项目按交付形态分两个版本，产物目录分开存放，均不进入仓库：
+
+| 版本        | 产物目录    | 生成方式                     | 适用对象                          |
+| ----------- | ----------- | ---------------------------- | --------------------------------- |
+| 免安装版    | `release/`  | `scripts/make_release.py`    | 没有 Python 环境的基层使用者      |
+| Python 库版 | `packages/` | `scripts/make_package.py`    | 有 Python 环境，需命令行或二次开发 |
+
+### 免安装版（release/）
+
+由 `scripts/make_release.py` 调用 PyInstaller 生成，面向没有 Python 环境的使用者。
 
 ```powershell
 python -m pip install pyinstaller              # 维护者一次性准备（已列入 pyproject 的 dev 额外依赖）
@@ -318,3 +327,35 @@ release/基层办公自动化助手/
 - `report_failure()` / `gui_app.fatal()`：无控制台时改用系统消息框提示启动失败。
 - `scripts/setup_env.py` 不安装 PyInstaller，基层使用者的环境保持精简。
 - exe 为窗口版（`--windowed`），没有控制台；排查问题靠 `--self-check` 报告与界面右侧「消息」栏。
+
+### Python 库版（packages/）
+
+```powershell
+python -m pip install build                    # 维护者一次性准备（dev 额外依赖）
+python scripts\make_package.py                 # wheel + sdist + 源码包
+python scripts\make_package.py --no-source     # 只要 wheel 与 sdist
+```
+
+| 产物                                      | 体积   | 用途                                                                   |
+| ----------------------------------------- | ------ | ---------------------------------------------------------------------- |
+| `information_mapper-<版本>-py3-none-any.whl` | 58 KB  | `pip install` 后提供 `info-map` 命令，界面用 `python -m information_mapper.gui` |
+| `information_mapper-<版本>.tar.gz`           | 69 KB  | sdist，供 pip 构建或源码分发                                            |
+| `information-mapper-<版本>-源码.zip`         | 120 KB | 含 `scripts/`、`docs/`、`config/` 与两个 `.bat`，解压后双击「一键配置环境.bat」 |
+
+默认用 `--no-isolation` 本地构建，避免联网拉取构建依赖；失败时自动改用隔离环境重试。
+wheel 只包含 `src/information_mapper`，不含 `docs/`，因此 pip 安装后的「使用说明」页
+会退化为内置简版；需要完整手册请用源码包或免安装版。
+`make_package.py` 与 `make_release.py` 都以 `build/` 为中间目录，二者均在 `.gitignore` 中。
+
+### 项目目录组织
+
+仓库内只保留源码、脚本、文档、示例配置与测试，其余内容分三类处理：
+
+| 目录                  | 内容                                                     | 是否入库       |
+| --------------------- | -------------------------------------------------------- | -------------- |
+| `materials/`          | 演示视频、答辩材料、软件截图、实践证明等材料与证明       | 已忽略（约 103 MB） |
+| `release/`、`packages/` | 两个版本的构建产物                                     | 已忽略         |
+| `build/`、`dist/`、`output/`、`self-check.txt` | 中间产物与运行输出            | 已忽略         |
+
+`materials/` 按用途分「演示视频 / 答辩材料 / 证明材料 / 素材 / 截图」五个子目录；
+历史上被跟踪的材料文件已从 git 历史中清除，仓库转为公开时不存在历史副本。

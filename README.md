@@ -156,8 +156,6 @@ info-map --input data\source.xlsx --output output\result.xlsx --mapping config\m
 | `word`         | 多个 Word 依次拼接，保留段落与表格                                                                                 | 多份登记表         |
 | `text`         | 按顺序拼接正文，每份文件前加小标题                                                                                 | 通知、会议材料汇编 |
 
-> [!WARNING]
-
 ## 配置文件
 
 **规则**

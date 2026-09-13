@@ -99,14 +99,13 @@
 | 函数                               | 用途                                                                       |
 | ---------------------------------- | -------------------------------------------------------------------------- |
 | `center_on_screen(window, w, h)` | 主窗口启动时按`MAIN_WIDTH` × `MAIN_HEIGHT` 居中到屏幕，无需先完成布局 |
-| `center_window(window, parent)`  | 弹窗居中到父窗口；父窗口不可见时（如测试环境）退回屏幕居中                 |
+| `center_window(window, parent)`  | 弹窗居中到父窗口；父窗口不可见时退回屏幕居中                               |
 | `_frame_origin(window)`          | 取窗口外框左上角坐标，供居中计算使用                                       |
 
-两个约束：
-
-1. `center_window()` 必须在控件构建完成后调用。布局结束前 `wm_geometry()` 一律返回
-   `1x1+0+0`，`winfo_width()` 也会返回 1，只有调用 `update_idletasks()` 之后才能取到真实尺寸。
-2. 居中必须使用 `wm_geometry()` 的 `+X+Y`（外框坐标）
+> [!WARNING]
+> * `center_window()` 必须在控件构建完成后调用。布局结束前 `wm_geometry()` 一律返回
+>   `1x1+0+0`，`winfo_width()` 也会返回 1，只有调用 `update_idletasks()` 之后才能取到真实尺寸。
+> * 居中必须使用 `wm_geometry()` 的 `+X+Y`（外框坐标
 
 ### 4.6 界面测试要点
 
@@ -135,7 +134,7 @@
 
 ## 6. 上传接口约定
 
-### multipart 模式（默认）
+### 6.1 multipart 模式（default）
 
 ```
 POST {UPLOAD_URL}
@@ -153,7 +152,7 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 --boundary--
 ```
 
-### json 模式
+### 6.2 json 模式
 
 ```json
 {
@@ -197,7 +196,7 @@ python scripts\make_demo_data.py
 - 样例数据集中在 `tests/conftest.py`；`inbox` fixture 内含一份损坏的 `.docx`，用于验证容错路径。
 - 纯逻辑（`map_records`、`collect_headers`、`pick_mode`、`ClassifyRule.matches`）优先做成无副作用函数并单独测试。
 
-### 批处理的编码约束
+### 7.1 批处理的编码约束
 
 `一键配置环境.bat`、`启动界面.bat` 为 UTF-8 无 BOM 文件，配合 `chcp 65001` 使用。
 经实测，cmd 在该代码页下解析含中文的较长行时可能发生字节错位
@@ -231,7 +230,7 @@ python scripts\make_demo_data.py
 
 项目按交付形态分两个版本
 
-### 免安装版（release/）
+### 10.1 免安装版（release/）
 
 由 `scripts/make_release.py` 调用 PyInstaller 生成，面向没有 Python 环境的使用者。
 
@@ -243,7 +242,7 @@ python scripts\make_release.py --zip           # 额外生成 zip，供 Release 
 python scripts\make_release.py --keep-build    # 保留 build/ 与 dist/ 以便排查
 ```
 
-### 两种形态的选择
+### 10.2 两种形态的选择
 
 | 形态                      | 产物与体积                                                             | 启动                               | 分发方式                                                    |
 | ------------------------- | ---------------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------- |
@@ -253,7 +252,7 @@ python scripts\make_release.py --keep-build    # 保留 build/ 与 dist/ 以便�
 两种形态各自写入独立目录，互不覆盖；exe 与 zip 的文件名均为 ASCII，中文名只出现在压缩包内的目录上
 （非 ASCII 文件名经命令行工具或 GitHub Release 上传时会被吞掉，见 `/memories/github-gh.md`）。
 
-### 必须显式确保收集的资源
+### 10.3 必须显式确保收集的资源
 
 下列资源不进包时会「构建成功但功能失效」
 
@@ -271,7 +270,7 @@ python scripts\make_release.py --keep-build    # 保留 build/ 与 dist/ 以便�
 入口脚本固定为 `scripts/gui_app.py`，构建名用 ASCII（`OfficeAssistant`），组装到发布目录时
 会改名为 `基层办公自动化助手.exe`
 
-### 打包后的路径解析
+### 10.4 打包后的路径解析
 
 tkinter/PyInstaller 环境下的路径与源码运行不同，已在 `gui.manual_roots()` 中统一处理：
 
@@ -281,7 +280,7 @@ tkinter/PyInstaller 环境下的路径与源码运行不同，已在 `gui.manual
 
 `gui_app.py` 在打包后不再插入 `src/` 到 `sys.path`，模块由 PyInstaller 提供。
 
-### 产物结构与分发
+### 10.5 产物结构与分发
 
 ```
 release/基层办公自动化助手/            目录版
@@ -297,7 +296,7 @@ release/基层办公自动化助手-单文件版/   单文件版（--onefile）
   docs / config / README.md / 使用说明.txt         与目录版一致
 ```
 
-### 产物自检
+### 10.6 产物自检
 
 构建完成后脚本会用 `--self-check` 启动产物（`scripts/gui_app.py`）：
 
@@ -311,13 +310,13 @@ release/基层办公自动化助手-单文件版/   单文件版（--onefile）
 窗口版（`--windowed`）不显示异常堆栈，启动期错误几乎是静默失败，因此以上检查不能省。
 结果写入当前目录的 `self-check.txt`，脚本读取后判定成败并删除该文件。
 
-### 与源码运行的区别
+### 10.7 与源码运行的区别
 
 - `report_failure()` / `gui_app.fatal()`：无控制台时改用系统消息框提示启动失败。
 - `scripts/setup_env.py` 不安装 PyInstaller，基层使用者的环境保持精简。
 - exe 为窗口版（`--windowed`），没有控制台；排查问题靠 `--self-check` 报告与界面右侧「消息」栏。
 
-### Python 库版（packages/）
+### 10.8 Python 库版（packages/）
 
 ```powershell
 python -m pip install build                    # 维护者一次性准备（dev 额外依赖）
@@ -325,31 +324,18 @@ python scripts\make_package.py                 # wheel + sdist + 源码包
 python scripts\make_package.py --no-source     # 只要 wheel 与 sdist
 ```
 
-| 产物                                           | 体积   | 用途                                                                                   |
-| ---------------------------------------------- | ------ | -------------------------------------------------------------------------------------- |
-| `information_mapper-<版本>-py3-none-any.whl` | 58 KB  | `pip install` 后提供 `info-map` 命令，界面用 `python -m information_mapper.gui`  |
-| `information_mapper-<版本>.tar.gz`           | 69 KB  | sdist，供 pip 构建或源码分发                                                           |
-| `information-mapper-<版本>-source.zip`       | 460 KB | 含`scripts/`、`docs/`、`config/` 与两个 `.bat`，解压后双击「一键配置环境.bat」 |
+| 产物                                          | 体积   | 用途                                                                                   |
+| --------------------------------------------- | ------ | -------------------------------------------------------------------------------------- |
+| `information_mapper-0.2.0-py3-none-any.whl` | 58 KB  | `pip install` 后提供 `info-map` 命令，界面用 `python -m information_mapper.gui`  |
+| `information_mapper-0.2.0.tar.gz`           | 69 KB  | sdist，供 pip 构建或源码分发                                                           |
+| `information-mapper-0.2.0-source.zip`       | 460 KB | 含`scripts/`、`docs/`、`config/` 与两个 `.bat`，解压后双击「一键配置环境.bat」 |
 
 默认用 `--no-isolation` 本地构建，避免联网拉取构建依赖；失败时自动改用隔离环境重试。
 wheel 只包含 `src/information_mapper`，不含 `docs/`，因此 pip 安装后的「使用说明」页
 会退化为内置简版；需要完整手册请用源码包或免安装版。
 `make_package.py` 与 `make_release.py` 都以 `build/` 为中间目录，二者均在 `.gitignore` 中。
 
-### 项目目录组织
-
-仓库内只保留源码、脚本、文档、示例配置与测试，其余内容分三类处理：
-
-| 目录                                                   | 内容                                               | 是否入库            |
-| ------------------------------------------------------ | -------------------------------------------------- | ------------------- |
-| `materials/`                                         | 演示视频、答辩材料、软件截图、实践证明等材料与证明 | 已忽略（约 103 MB） |
-| `release/`、`packages/`                            | 两个版本的构建产物                                 | 已忽略              |
-| `build/`、`dist/`、`output/`、`self-check.txt` | 中间产物与运行输出                                 | 已忽略              |
-
-`materials/` 按用途分「演示视频 / 答辩材料 / 证明材料 / 素材 / 截图」五个子目录；
-历史上被跟踪的材料文件已从 git 历史中清除，仓库转为公开时不存在历史副本。
-
-### 许可与第三方组件
+### 10.9 许可与第三方组件
 
 - 项目本体以 MIT 发布
 - 免安装版会分发 numpy、pandas、OpenCV、rapidocr-onnxruntime（含 PP-OCR 模型，源自 PaddleOCR）

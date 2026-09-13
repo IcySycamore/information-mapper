@@ -1,0 +1,17 @@
+{
+  "_comment": "自动上传配置。url 与 token 均为占位符，请替换为真实值后再执行上传。也可用环境变量 INFO_MAP_UPLOAD_URL / INFO_MAP_UPLOAD_TOKEN 覆盖。",
+  "url": "https://your-server.example.com/api/upload",
+  "token": "YOUR_API_TOKEN_HERE",
+  "method": "multipart",
+  "field_name": "file",
+  "token_header": "Authorization",
+  "token_prefix": "Bearer ",
+  "timeout": 30.0,
+  "retries": 3,
+  "retry_delay": 2.0,
+  "verify_ssl": true,
+  "extra_fields": {
+    "team": "码上助基层",
+    "category": "daily-report"
+  }
+}

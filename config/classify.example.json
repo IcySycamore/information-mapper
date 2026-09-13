@@ -1,0 +1,33 @@
+{
+  "target_root": "归档",
+  "default_target": "99-其他",
+  "copy": false,
+  "rules": [
+    {
+      "name": "报表",
+      "extensions": [".xlsx", ".xls", ".csv", ".tsv"],
+      "target": "01-报表"
+    },
+    {
+      "name": "报告文档",
+      "extensions": [".docx", ".pdf"],
+      "keywords": ["报告", "总结", "汇报", "材料"],
+      "target": "02-报告"
+    },
+    {
+      "name": "表格文档",
+      "extensions": [".docx", ".pdf"],
+      "target": "03-表格文档"
+    },
+    {
+      "name": "数据文件",
+      "extensions": [".json", ".txt", ".md"],
+      "target": "04-文本数据"
+    },
+    {
+      "name": "网页存档",
+      "extensions": [".html", ".htm"],
+      "target": "05-网页"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+.venv*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+output/
+
+# 大体积演示素材（超出 GitHub 建议的单文件体积，按需单独上传）
+*.mp4

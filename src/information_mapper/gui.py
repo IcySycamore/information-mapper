@@ -225,7 +225,9 @@ def support_text(contacts: dict[str, str] | None = None, environment: dict[str, 
             f"  1. 在项目主页提交 issue：{SUPPORT_REPOSITORY}/issues",
             "  2. 也可通过上面的 QQ 或邮箱联系",
             "",
-            "反馈时请附上本页信息，便于定位问题。",
+            "本页内容为联系方式与运行环境，不含报错信息。",
+            "反馈时请附上本页信息，并附上右栏「消息」区中对应的报错记录",
+            "（在右栏消息中选中相关文本，按 Ctrl+C 复制）。",
         ]
     )
     return "\n".join(lines)
